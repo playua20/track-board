@@ -74,7 +74,8 @@ export default async function handler(req, res) {
       // Ours replaces dashboard_stats' byAd — same rows, split by status.
       byAd:      detail.byAd || data.byAd || [],
       capiDest:  detail.capiDest || [],
-      capiStale: detail.capiStale ?? 0,
+      capiReversed:    detail.capiReversed ?? 0,
+      capiCompensated: detail.capiCompensated ?? 0,
       geo:    detail.geo || [],
       series: detail.series || [],
       bucket: detail.bucket || 'hour',

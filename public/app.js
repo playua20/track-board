@@ -976,13 +976,22 @@
        postback with the same txid can reverse it — by which time the platform
        has already been told, and the call cannot be un-sent. A pending
        conversion, on the other hand, triggers no call at all. */
-    const stale = Number(d.capiStale) || 0;
+    const reversed = Number(d.capiReversed) || 0;
+    const fixed = Number(d.capiCompensated) || 0;
+    const open = Math.max(reversed - fixed, 0);
     const approved = Number(d.conversions?.approved) || 0;
     const delivered = Number(d.capi?.delivered) || 0;
-    if (stale > 0) {
+
+    if (reversed > 0) {
       lines.push(`${int(delivered)} call${delivered === 1 ? '' : 's'} for ${int(approved)} conversion${approved === 1 ? '' : 's'} approved now: ` +
-        `<b>${int(stale)}</b> went out before the network ` +
-        `<span class="hint" title="${esc(REVERSAL)}">reversed</span> ${stale === 1 ? 'it' : 'them'}.`);
+        `<b>${int(reversed)}</b> went out before the network ` +
+        `<span class="hint" title="${esc(REVERSAL)}">reversed</span> ${reversed === 1 ? 'it' : 'them'}.`);
+
+      // The gap is the only figure here that is a problem: a signal the
+      // platform still believes and we have not withdrawn.
+      lines.push(open === 0
+        ? `<span class="ok">✓ ${fixed === 1 ? 'A compensating call was' : `${int(fixed)} compensating calls were`} sent and accepted.</span>`
+        : `<span class="bad">⚠ ${int(open)} still uncompensated — the platform is optimising on ${open === 1 ? 'a conversion' : 'conversions'} that no longer ${open === 1 ? 'exists' : 'exist'}.</span>`);
     }
 
     note.hidden = !lines.length;
@@ -1258,6 +1267,27 @@
       touch();
       if (wasIdle) { $('#live').classList.remove('is-paused'); load({ quiet: true }); }
     }, { passive: true }));
+
+  /* ------------------------------------------------------------------ *
+   * this page's own pixel
+   *
+   * A visit here becomes a real event, with the visitor's real country read
+   * at the edge, and it shows up on BOTH dashboards — one row in the shared
+   * database, read by each. Which is the point: somebody opening this link
+   * can watch their own arrival appear in the table below.
+   *
+   * Injected rather than written as a <script> tag so it can be skipped on
+   * localhost: development traffic has no business in the live figures, and
+   * the page is served locally far more often than it is visited.
+   * ------------------------------------------------------------------ */
+  (function pixel() {
+    if (/^(localhost|127\.|0\.0\.0\.0|\[?::1)/i.test(location.hostname)) return;
+    const s = document.createElement('script');
+    s.src = new URL('/t.js', TRACK_URL).href;
+    s.defer = true;
+    s.setAttribute('data-site', 'track-board');
+    document.head.appendChild(s);
+  })();
 
   /* ------------------------------------------------------------------ *
    * boot

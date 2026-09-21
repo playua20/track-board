@@ -583,6 +583,8 @@ svg.ico {
 .note--dest { padding-top: 12px; font-size: 12px; display: grid; gap: 5px; }
 .note__l { display: block; }
 .note__l b { color: var(--ink-2); font-weight: 650; }
+.note__l .ok  { color: var(--up); }
+.note__l .bad { color: var(--warn); }
 
 /* --- footer ------------------------------------------------------------ */
 

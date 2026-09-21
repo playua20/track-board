@@ -168,13 +168,32 @@ as $$
        Delivery fires when a postback settles a conversion as approved; a later
        postback with the same txid can reverse it, and by then the platform has
        already been told. It is why `delivered` can exceed the approved count,
-       and without it the two figures look like a contradiction. */
-    'capiStale', (select count(*)::int
-                  from capi_deliveries d
-                  join conversions cv on cv.id = d.conversion_id
-                  where d.status = 'delivered' and cv.status <> 'approved'
-                    and (p_since is null or d.created_at >= p_since)
-                    and (p_site is null or exists (select 1 from cvp where cvp.id = d.conversion_id))),
+       and without it the two figures look like a contradiction.
+
+       ⚠ Only ORIGINAL deliveries count here. The compensating call is itself a
+       delivered row belonging to a conversion that is no longer approved, so
+       counting it too would report every correction as a fresh problem — the
+       fix would inflate the number it fixes. */
+    'capiReversed', (select count(*)::int
+                     from capi_deliveries d
+                     join conversions cv on cv.id = d.conversion_id
+                     where d.status = 'delivered' and d.event_id not like '%-refund'
+                       and cv.status <> 'approved'
+                       and (p_since is null or d.created_at >= p_since)
+                       and (p_site is null or exists (select 1 from cvp where cvp.id = d.conversion_id))),
+    /* …and how many of those have had their correction accepted. The gap
+       between the two is the only number that represents an actual problem:
+       a signal the platform still believes and we have not withdrawn. */
+    'capiCompensated', (select count(*)::int
+                        from capi_deliveries d
+                        join conversions cv on cv.id = d.conversion_id
+                        where d.status = 'delivered' and d.event_id not like '%-refund'
+                          and cv.status <> 'approved'
+                          and exists (select 1 from capi_deliveries r
+                                      where r.event_id = d.event_id || '-refund'
+                                        and r.status = 'delivered')
+                          and (p_since is null or d.created_at >= p_since)
+                          and (p_site is null or exists (select 1 from cvp where cvp.id = d.conversion_id))),
     /* Per-ad totals BY STATUS, replacing dashboard_stats' byAd.
        That one counts conversions of every status in one column while summing
        revenue from approved ones only — so an ad with an approved $18.00, a
