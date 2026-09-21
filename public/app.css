@@ -513,6 +513,18 @@ svg.ico {
 }
 @media (prefers-reduced-motion: reduce) { .share__f { transition: none; } }
 
+/* The conversion that could not be credited to an ad. Two lines, because the
+   first is a fact and the second is the reason for it, and a table cell is the
+   one place a reader will not go looking for a tooltip. */
+.orph { display: block; min-width: 0; }
+.orph b { display: block; font-weight: 600; color: var(--ink-2); }
+.orph i {
+  display: block; margin-top: 1px;
+  color: var(--ink-3); font-size: 11px; font-style: normal;
+  white-space: normal;
+}
+.is-orphan td { vertical-align: top; }
+
 /* The geography table's direction column (§7). */
 .gd { display: inline-flex; align-items: center; gap: 2px; font-weight: 600; }
 .gd--up   { color: var(--up); }

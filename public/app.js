@@ -237,7 +237,13 @@
       // Against pageviews, not clicks: a lead can be sent without a click
       // preceding it, and a rate over the smaller number reads as >100%.
       leads:  views ? `${pctTxt(pct(cur.leads, views))} of pageviews` : '',
-      conv:   Number(d.conversions?.pending) ? `${int(d.conversions.pending)} pending` : '',
+      // `orphans` is in the payload and was on screen nowhere. It belongs
+      // beside the count it is not part of: an unmatched postback is money the
+      // network reported that no ad can be credited with.
+      conv:   [
+        Number(d.conversions?.pending) ? `${int(d.conversions.pending)} pending` : '',
+        Number(d.conversions?.orphans) ? `${int(d.conversions.orphans)} unmatched` : '',
+      ].filter(Boolean).join(' · '),
       rev:    cur.conv ? `${cash(cur.rev / cur.conv)} average payout` : '',
     };
     for (const k of Object.keys(notes)) $(`[data-n="${k}"]`).textContent = notes[k];
@@ -868,11 +874,15 @@
              the opposite, a case the pipeline handles on purpose, so the row
              says what it is. */
           const orphan = r.campaign === '—' && r.ad === '—';
+          /* "Unattributed" is the correct word and it explains nothing on its
+             own — the explanation was in a title, and a title is not read.
+             The row says what happened, in the row. */
           return `<tr${orphan ? ' class="is-orphan"' : ''}>
             <td${orphan ? ' colspan="2"' : ''}>${
               orphan
                 ? '<span class="cell">' + ico('unlink', 'ico ico--sm') +
-                  '<span class="mut hint" title="A postback whose click id was never seen here — recorded and paid, but not credited to any ad">Unattributed</span></span>'
+                  '<span class="orph"><b>No matching click</b>' +
+                  '<i>orphan postback — its click id was never seen here</i></span></span>'
                 : esc(r.campaign)}</td>
             ${orphan ? '' : `<td class="mut">${esc(r.ad)}</td>`}
             <td class="r">${int(r.conversions)}</td>
