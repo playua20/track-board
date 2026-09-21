@@ -895,7 +895,16 @@
                      network actually settled, and this table would stop
                      summing to it — the same silent discrepancy twice fixed
                      elsewhere on this page. */
-                  '<span class="orph"><b>Click id not recognised</b>' +
+                  /* The trade's own word, and the one already on the
+                     Conversions tile ("1 unmatched") and in the column the
+                     database keeps it in (conversions.matched) — so the page,
+                     the figure above it and the schema all say the same thing.
+                     Not "unmatched / unknown": those are two names for one
+                     state, and a slash in a table cell reads as a boundary
+                     between two categories rather than as a synonym. The term
+                     carries nothing on its own, which is what the line under
+                     it is for. */
+                  '<span class="orph"><b>Unmatched</b>' +
                   '<i>the network reported a click this tracker never recorded — ' +
                   'the payout still counts, there is just no ad to credit it to</i></span></span>'
                 : esc(r.campaign || '—')}</td>
