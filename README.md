@@ -157,12 +157,20 @@ is supposed to be, with the order and the relative sizes intact. The exact count
 the exact share of the first stage and the drop-off are printed beside every
 band: **the width is the silhouette, the figures are the data.**
 
-**7 · The left rail is navigation, not a mock admin panel.** Every entry jumps to
-a block on this page and lights up when that block is in view; there is no dead
-link in it. It exists because a rail is the silhouette that makes a page read as
-a dashboard rather than as an article — and it was only allowed on a
-single-page dashboard on condition that every icon goes somewhere real. Below
-1100px it is not rendered at all and the layout is the single column of §6.
+**7 · The left rail is navigation, not a mock admin panel — one entry per grid
+row.** Every entry jumps to a block on this page and lights up when that block
+is in view; there is no dead link in it. It exists because a rail is the
+silhouette that makes a page read as a dashboard rather than as an article, and
+it was only allowed on a single-page dashboard on condition that every icon goes
+somewhere real. Below 1100px it is not rendered at all and the layout is the
+single column of §6.
+
+Its granularity is the layout's, not the block list's. From 1100px the blocks
+sit in pairs on a row — funnel beside the time chart, geography beside devices,
+monetisation beside delivery health — and a pair is on screen together, so one
+entry per *block* meant two icons were "here" at once. Two active items in a nav
+read as a fault, whatever the reasoning behind them. Five rows, five entries,
+exactly one active at every scroll position.
 
 **8 · Polling stops after ten idle minutes.** §9 asks for a 15-second poll while
 the tab is visible. That alone would have a forgotten tab calling a serverless

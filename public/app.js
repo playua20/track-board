@@ -1017,16 +1017,25 @@
    * onto a single-page dashboard at all. It lights up to follow the reader.
    * ------------------------------------------------------------------ */
 
+  /* ONE ENTRY PER GRID ROW, not one per block.
+     From 1100px the blocks sit in pairs on a row — funnel beside the time
+     chart, geography beside devices, monetisation beside delivery health — and
+     a pair is on screen together. Eight entries over five rows meant two of
+     them were "here" at once, which is not what an active nav item means: a
+     reader sees two highlights and reads a bug. The granularity of the rail
+     has to be the granularity the layout can actually distinguish. */
   const RAIL = [
-    ['sec-kpis',   'Headline',      '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>'],
-    ['sec-funnel', 'Funnel',        '<path d="M3 4h18l-7 8v8l-4-2v-6z"/>'],
-    ['sec-series', 'Over time',     '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m7 14 3.5-4 3 3L20 6"/>'],
-    ['sec-geo',    'Geography',     '<circle cx="12" cy="12" r="9"/><path d="M12 3a15 15 0 0 0 0 18 15 15 0 0 0 0-18"/><path d="M3 12h18"/>'],
-    ['sec-dev',    'Devices',       '<rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8M12 17v4"/>'],
-    ['sec-tail',   'Live events',   '<path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1.4" fill="currentColor"/>'],
-    ['sec-money',  'Monetisation',  '<path d="M12 2v20"/><path d="M17 6.5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'],
-    ['sec-health', 'Delivery',      '<path d="M22 12h-4l-3 8-4-16-3 8H2"/>'],
+    ['sec-kpis',   'Headline',             '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>'],
+    ['sec-funnel', 'Funnel & trend',       '<path d="M3 4h18l-7 8v8l-4-2v-6z"/>'],
+    ['sec-geo',    'Geography & devices',  '<circle cx="12" cy="12" r="9"/><path d="M12 3a15 15 0 0 0 0 18 15 15 0 0 0 0-18"/><path d="M3 12h18"/>'],
+    ['sec-tail',   'Live events',          '<path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1.4" fill="currentColor"/>'],
+    ['sec-money',  'Revenue & delivery',   '<path d="M12 2v20"/><path d="M17 6.5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'],
   ];
+
+  /* Every block, including the ones the rail does not link to directly: the
+     spy needs all of them to work out which ROW is being read. */
+  const SECTIONS = ['sec-kpis', 'sec-funnel', 'sec-series', 'sec-geo', 'sec-dev',
+                    'sec-tail', 'sec-money', 'sec-health'];
 
   $('#rail').innerHTML = RAIL.map(([id, label, path]) =>
     `<li><a class="rail__b" href="#${id}" data-label="${label}" aria-label="${label}">` +
@@ -1042,7 +1051,7 @@
      click Geography, watch Funnel light up. */
   (function railFollow() {
     const links = new Map($$('.rail__b').map(a => [a.getAttribute('href').slice(1), a]));
-    const secs = RAIL.map(([id]) => document.getElementById(id)).filter(Boolean);
+    const secs = SECTIONS.map(id => document.getElementById(id)).filter(Boolean);
     if (!secs.length) return;
 
     let pinned = null, pinnedUntil = 0;
@@ -1055,10 +1064,11 @@
        picking the last that passed hides the left three, picking the first
        hides the right three. Measured both ways; each left three items dead.
 
-       Both blocks really are on screen, so the rail says so: the unit is the
-       ROW, and every section in the active row lights up. Rows are grouped by
-       measuring in one frame, never cached — heights change as data lands and
-       the whole layout changes at the breakpoints. */
+       So the active unit is the ROW. The rail carries one entry per row (see
+       RAIL above), so resolving a row lights exactly one icon — a reader never
+       sees two "you are here" marks. Rows are grouped by measuring in one
+       frame, never cached: heights change as data lands and the whole layout
+       changes at the breakpoints. */
     const rowOf = (rects, top) => new Set(
       rects.filter(r => Math.abs(r.top - top) < 8).map(r => r.id));
 
