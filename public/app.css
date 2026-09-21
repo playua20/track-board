@@ -99,6 +99,36 @@ svg.ico {
 }
 .ico--sm { width: 14px; height: 14px; color: var(--ink-3); }
 
+/* --- the Live events card's own controls ------------------------------- */
+
+/* These had no rules at all for a while and held together by accident: .btn is
+   inline-flex, so two buttons flowed side by side on their own. A third child
+   made the accident visible. */
+.demo { display: flex; flex-wrap: wrap; gap: 8px; }
+.demo__b { background: var(--card-2); text-decoration: none; color: inherit; }
+.demo__b:disabled { opacity: .6; cursor: default; }
+.demo__l { white-space: nowrap; }
+
+/* --- the event log page ------------------------------------------------ */
+
+/* NOT `.wrap--log { display: block }`: this block sits above `.wrap` in the
+   file, so at equal specificity `.wrap { display: grid }` wins and the log
+   card took one column of the twelve — a 90px-wide table that still passed
+   every functional check, because it had rows and did not overflow. The card
+   spans the grid instead, which does not depend on source order. */
+.card--log { display: flex; flex-direction: column; }
+.tbl--log td { vertical-align: middle; }
+.tbl--log tbody tr:first-child td { padding-top: 11px; }
+
+.more {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding-top: 14px;
+}
+.more .btn { min-width: 160px; justify-content: center; }
+.more .note { padding: 4px 0 0; text-align: center; }
+
+.card__sub b { color: var(--ink); font-weight: 650; font-variant-numeric: tabular-nums; }
+
 .vh {
   position: absolute; width: 1px; height: 1px; overflow: hidden;
   clip-path: inset(50%); white-space: nowrap;
@@ -765,6 +795,7 @@ svg.ico {
   .card--geo    { grid-column: span 7; }
   .card--dev    { grid-column: span 5; }
   .card--tail   { grid-column: 1 / -1; }
+  .card--log    { grid-column: 1 / -1; }
   .card--money  { grid-column: span 8; }
   .card--health { grid-column: span 4; }
 

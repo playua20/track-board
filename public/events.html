@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Event log — Track Board</title>
+<meta name="description" content="Every event the tracking endpoint has recorded, newest first, with keyset pagination and filters by type, country and source.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/app.css">
+<script src="/common.js" defer></script>
+<script src="/log.js" defer></script>
+</head>
+<body>
+
+<a class="skip" href="#log">Skip to the log</a>
+
+<div class="shell">
+  <nav class="rail" aria-label="Sections">
+    <a class="rail__mark" href="/" aria-label="Track Board — back to the dashboard">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 17.5 8.5 11l4 4L21 6" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/><path d="M15.5 6H21v5.5" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+    <ul class="rail__list">
+      <li><a class="rail__b" href="/" data-label="Back to the dashboard" aria-label="Back to the dashboard">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+      </a></li>
+    </ul>
+  </nav>
+
+  <div class="main" id="top">
+
+    <header class="top">
+      <div class="top__in">
+        <div class="brand">
+          <span class="brand__mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/></svg>
+          </span>
+          <span class="brand__txt">
+            <span class="brand__name">Event&nbsp;log</span>
+            <span class="brand__sub">Every event the endpoint has recorded, newest first. The dashboard shows the last ten; this is all of them, back to the thirty-day retention cut.</span>
+          </span>
+        </div>
+
+        <div class="controls">
+          <label class="sitesel"><span class="vh">Type</span>
+            <select id="fType" class="sitesel__i"><option value="">All types</option></select>
+          </label>
+          <label class="sitesel"><span class="vh">Country</span>
+            <select id="fCountry" class="sitesel__i"><option value="">All countries</option></select>
+          </label>
+          <label class="sitesel"><span class="vh">Source</span>
+            <select id="fSite" class="sitesel__i"><option value="">All sources</option></select>
+          </label>
+          <a class="btn btn--accent" href="/">
+            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+            <span>Dashboard</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="top__in top__live">
+        <p class="live" id="live">
+          <span class="live__dot" aria-hidden="true"></span>
+          <span id="liveTxt">Loading…</span>
+        </p>
+        <p class="err" id="err" hidden role="status">
+          <span id="errTxt"></span>
+          <button type="button" class="btn btn--ghost" id="retry">Retry</button>
+        </p>
+      </div>
+    </header>
+
+    <main class="wrap wrap--log" id="log">
+      <section class="card card--log" aria-labelledby="hLog">
+        <div class="card__head">
+          <h2 id="hLog">Events</h2>
+          <p class="card__sub" id="logSub">Country, city, device, OS and browser are read from the request at the edge — never sent by the page.</p>
+        </div>
+
+        <div class="tbl-scroll">
+          <table class="tbl tbl--log" id="logTbl">
+            <thead><tr>
+              <th scope="col">Time</th>
+              <th scope="col">Type</th>
+              <th scope="col">Country</th>
+              <th scope="col">City</th>
+              <th scope="col">Device</th>
+              <th scope="col">OS</th>
+              <th scope="col">Browser</th>
+              <th scope="col">Source</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div class="more">
+          <button type="button" class="btn" id="more" hidden>
+            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            <span id="moreTxt">Load more</span>
+          </button>
+          <p class="note" id="end" hidden></p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="foot"></footer>
+  </div>
+</div>
+
+</body>
+</html>

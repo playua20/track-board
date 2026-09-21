@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="stylesheet" href="/app.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" defer></script>
+<script src="/common.js" defer></script>
 <script src="/app.js" defer></script>
 </head>
 <body>
@@ -189,6 +190,10 @@
             <p class="card__sub">The last ten rows to reach the database. Send one yourself — your own country and device will be read from the request.</p>
           </div>
           <div class="demo">
+            <a class="btn demo__b" href="/events">
+              <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+              <span class="demo__l">All events</span>
+            </a>
             <button type="button" class="btn demo__b" data-demo="pageview">
               <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
               <span class="demo__l">Send a pageview</span>
