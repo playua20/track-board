@@ -115,8 +115,7 @@ reaches the database.
 
 ## Decisions
 
-The spec left three open (`SPEC.md` §12). The answers, and two more worth
-writing down:
+The ones worth writing down, and why:
 
 **1 · Deltas against the previous period — a second RPC call, no schema change.**
 `dashboard_stats` takes a start but no end, so a shifted window cannot be asked

@@ -4,3 +4,10 @@ node_modules/
 .env*.local
 .vercel
 CLAUDE.md
+
+# The brief and its design references, not the product. SPEC.md spells out what
+# this link is FOR — the portfolio card, the profile, the pinned repository —
+# and docs/ holds crops of the hero image it was designed against. Both belong
+# on disk, neither belongs in a public repository.
+SPEC.md
+docs/
