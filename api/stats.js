@@ -71,8 +71,11 @@ export default async function handler(req, res) {
     res.status(200).json({
       ...data,
       funnel:    detail.funnel || null,
-      // Ours replaces dashboard_stats' byAd — same rows, split by status.
+      // Ours replace dashboard_stats' byAd and byRef — same rows, but split by
+      // status and with the tail folded rather than truncated, so both tables
+      // keep adding up to the figures above them however many rows exist.
       byAd:      detail.byAd || data.byAd || [],
+      byRef:     detail.byRef || data.byRef || [],
       capiDest:  detail.capiDest || [],
       capiReversed:    detail.capiReversed ?? 0,
       capiCompensated: detail.capiCompensated ?? 0,

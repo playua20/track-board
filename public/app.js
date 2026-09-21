@@ -884,6 +884,16 @@
              Not "No click" either: the network DID report one, and a reader who
              takes this for organic traffic has it backwards — organic traffic
              produces no postback at all. What is missing is OUR record. */
+          /* The folded tail: everything past the ninth ad, in one row, so the
+             column still sums to the Revenue tile however many ads exist. */
+          if (r.folded) {
+            return `<tr class="is-folded">
+              <td colspan="2"><span class="cell">${ico('chevron', 'ico ico--sm')}` +
+              `<span class="mut">${int(r.folded_n)} more ad${r.folded_n === 1 ? '' : 's'}</span></span></td>
+              <td class="r">${int(r.approved)}${pendRej(r)}</td>
+              <td class="r">${cash(r.revenue)}</td>
+            </tr>`;
+          }
           const orphan = r.matched === false;
           return `<tr${orphan ? ' class="is-orphan"' : ''}>
             <td${orphan ? ' colspan="2"' : ''}>${
@@ -918,8 +928,10 @@
     const refs = d.byRef || [];
     const top = Math.max(...refs.map(r => r.n), 1);
     $('#refTbl tbody').innerHTML = refs.length
-      ? refs.map(r => `<tr>
-          <td>${refCell(r.host)}</td>
+      ? refs.map(r => `<tr${r.folded ? ' class="is-folded"' : ''}>
+          <td>${r.folded
+            ? `<span class="cell">${ico('chevron', 'ico ico--sm')}<span class="mut">${int(r.folded_n)} more source${r.folded_n === 1 ? '' : 's'}</span></span>`
+            : refCell(r.host)}</td>
           <td class="r">${int(r.n)}${share(r.n, top)}</td>
         </tr>`).join('')
       : `<tr><td colspan="2" class="mut">No events in this period</td></tr>`;

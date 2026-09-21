@@ -34,7 +34,9 @@ stable
 security invoker
 as $$
   with ev as (
-    select created_at, type, coalesce(country, '??') as country
+    -- ref_host is here for refg below; adding a column to this CTE is cheaper
+    -- than a second pass over the same filtered set.
+    select created_at, type, ref_host, coalesce(country, '??') as country
     from events
     where (p_site is null or site = p_site)
       and (p_since is null or created_at >= p_since)
@@ -91,6 +93,37 @@ as $$
     where (p_site is null or e.site = p_site)
       and (p_since is null or c.created_at >= p_since)
     group by 1
+  ),
+  /* Per-ad and per-source totals, RANKED rather than truncated.
+     A bare `limit 10` bounds the table's height and silently drops whatever
+     does not fit — so with eleven ads the column would stop summing to the
+     Revenue tile and nothing would say why. Ranking lets the tail be folded
+     into one row instead of vanishing: the height stays bounded and the
+     arithmetic still closes. */
+  adg as (
+    select c.sub1 as campaign, c.sub3 as ad, c.matched,
+           count(*) filter (where c.status = 'approved')::int as approved,
+           count(*) filter (where c.status = 'pending')::int  as pending,
+           count(*) filter (where c.status = 'rejected')::int as rejected,
+           coalesce(sum(c.payout) filter (where c.status = 'approved'), 0)::float8 as revenue
+    from conversions c
+    where (p_site is null or exists (
+             select 1 from events e where e.id = c.event_id and e.site = p_site))
+      and (p_since is null or c.created_at >= p_since)
+    -- matched is part of the key: an unmatched postback has no campaign to
+    -- name and must not be folded in with a matched click that merely arrived
+    -- without ad macros.
+    group by 1, 2, 3
+  ),
+  adr as (
+    select *, row_number() over (order by revenue desc, approved desc) as rank from adg
+  ),
+  refg as (
+    select coalesce(ref_host, 'direct') as host, count(*)::int as n
+    from ev group by 1
+  ),
+  refr as (
+    select *, row_number() over (order by n desc, host) as rank from refg
   ),
   evg as (
     select country,
@@ -201,21 +234,25 @@ as $$
        a lone pending one reads "1 conversion · $0.00". Both are true and
        together they are misleading: two columns side by side on different
        bases, with nothing saying so. */
-    'byAd', (select coalesce(jsonb_agg(to_jsonb(x) order by x.revenue desc, x.approved desc), '[]') from (
-               select c.sub1 as campaign, c.sub3 as ad, c.matched,
-                      count(*) filter (where c.status = 'approved')::int as approved,
-                      count(*) filter (where c.status = 'pending')::int  as pending,
-                      count(*) filter (where c.status = 'rejected')::int as rejected,
-                      coalesce(sum(c.payout) filter (where c.status = 'approved'), 0)::float8 as revenue
-               from conversions c
-               where (p_site is null or exists (
-                        select 1 from events e where e.id = c.event_id and e.site = p_site))
-                 and (p_since is null or c.created_at >= p_since)
-               -- matched is part of the key: an unattributed postback has no
-               -- campaign to name, and must not be folded in with a matched
-               -- click that merely arrived without ad macros.
-               group by 1, 2, 3
-               order by revenue desc, approved desc limit 10) x),
+    -- Nine named ads plus, when there are more, one row carrying the rest.
+    'byAd', (select coalesce(jsonb_agg(to_jsonb(x) order by x.rank), '[]') from (
+               select rank, campaign, ad, matched, approved, pending, rejected, revenue,
+                      false as folded, 0 as folded_n
+               from adr where rank <= 9
+               union all
+               select 10, null, null, null,
+                      sum(approved)::int, sum(pending)::int, sum(rejected)::int,
+                      sum(revenue)::float8, true, count(*)::int
+               from adr where rank > 9
+               having count(*) > 0) x),
+    -- Same shape for the sources, which also add up to the event total.
+    'byRef', (select coalesce(jsonb_agg(to_jsonb(x) order by x.rank), '[]') from (
+                select rank, host, n, false as folded, 0 as folded_n
+                from refr where rank <= 7
+                union all
+                select 8, null, sum(n)::int, true, count(*)::int
+                from refr where rank > 7
+                having count(*) > 0) x),
     'bucket', (select unit from step),
     'series', (select coalesce(jsonb_agg(to_jsonb(s) order by s.t), '[]') from (
                  select a.t,
