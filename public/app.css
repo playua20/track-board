@@ -1,0 +1,723 @@
+/* ===========================================================================
+   Track Board — one stylesheet, mobile-first.
+   Every min-width query adds to the small-screen layout; there is no max-width
+   query in this file and none should be added.
+
+   The palette is not chosen by eye. The categorical trio and the ordinal ramp
+   were run through the data-viz validator against THIS card surface (#151b23)
+   and every text/mark pair was measured for contrast; the numbers are in
+   README.md. Green and red mean direction only — never decoration.
+   =========================================================================== */
+
+:root {
+  /* surfaces */
+  --page:   #0d1117;
+  --card:   #151b23;
+  --card-2: #1a212b;          /* nested: table heads, tail rows, chips */
+  --line:   rgba(255, 255, 255, .09);
+  --line-2: rgba(255, 255, 255, .055);
+  --grid:   rgba(255, 255, 255, .06);
+
+  /* ink — all three clear 4.5:1 on both surfaces */
+  --ink:   #e8edf5;
+  --ink-2: #9aa9bd;
+  --ink-3: #7d8b9f;
+
+  /* one accent, for interactive elements and the primary series */
+  --accent:    #4c8dff;
+  --accent-dim: rgba(76, 141, 255, .14);
+  --on-accent: #08111f;       /* white on the accent is 3.2:1 — this is 5.9:1 */
+
+  /* direction, never decoration */
+  --up:   #3fb950;
+  --down: #f85149;
+  --warn: #e3b341;
+
+  /* ordinal ramp: funnel stages and the stacked series, in stage order */
+  --s-view:  #3a74d4;
+  --s-click: #4c8dff;
+  --s-lead:  #74a5ff;
+  --s-conv:  #a8c6ff;
+  --s-test:  #717d8e;
+
+  /* categorical, for the one donut */
+  --c-1: #4c8dff;
+  --c-2: #cf7a2e;
+  --c-3: #d55181;
+
+  --r:    9px;                /* cards — small and editorial, never pillowy */
+  --r-sm: 5px;
+  --gut:  16px;
+  --gap:  14px;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+/* An author `display` beats the UA's [hidden] rule, and several components
+   below set one. Without this, `el.hidden = true` does nothing to them. */
+[hidden] { display: none !important; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font: 400 15px/1.5 var(--sans);
+  /* The page must never be wider than the viewport (§6). */
+  overflow-x: hidden;
+}
+
+h1, h2, h3, p, figure { margin: 0; }
+
+button, select { font: inherit; color: inherit; }
+
+svg.ico {
+  width: 16px; height: 16px; flex: none;
+  fill: none; stroke: currentColor; stroke-width: 1.8;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+
+.vh {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap;
+}
+
+:where(button, select, a, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+/* --- header ---------------------------------------------------------- */
+
+/* The filter row stays reachable while reading down the page, and gives up its
+   subtitle to do it — a full-height header stuck to the top would eat a third
+   of a phone screen. */
+.top {
+  position: sticky; top: 0; z-index: 30;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, #111823, var(--page));
+  transition: box-shadow .25s ease, background-color .25s ease;
+}
+
+@supports (backdrop-filter: blur(1px)) {
+  .is-scrolled .top {
+    background: rgba(13, 17, 23, .82);
+    backdrop-filter: blur(16px) saturate(150%);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, .34);
+  }
+}
+.is-scrolled .top { box-shadow: 0 8px 28px rgba(0, 0, 0, .34); }
+
+.brand__sub {
+  transition: opacity .22s ease, max-height .28s ease, margin-top .28s ease;
+  max-height: 60px;
+}
+.is-scrolled .brand__sub { opacity: 0; max-height: 0; margin-top: 0; }
+
+.is-scrolled .top__in:first-child { padding-top: 12px; }
+.is-scrolled .top__live { padding-top: 8px; padding-bottom: 10px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .top, .brand__sub { transition: none; }
+}
+
+.top__in {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 18px var(--gut) 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.brand { display: flex; gap: 11px; align-items: flex-start; }
+
+.brand__mark {
+  width: 34px; height: 34px; flex: none;
+  display: grid; place-items: center;
+  border-radius: var(--r-sm);
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+.brand__mark svg { width: 20px; height: 20px; }
+
+.brand__txt { display: block; min-width: 0; }
+
+.brand__name {
+  display: block;
+  font-size: 19px; font-weight: 650; letter-spacing: -.015em;
+}
+
+.brand__sub {
+  display: block;
+  margin-top: 2px;
+  max-width: 62ch;
+  color: var(--ink-2);
+  font-size: 13px; line-height: 1.45;
+}
+
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+.seg {
+  display: flex;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--card);
+}
+
+.seg__b {
+  min-height: 34px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  color: var(--ink-2);
+  font-size: 13px; font-weight: 550;
+  cursor: pointer;
+}
+.seg__b:hover { color: var(--ink); background: var(--line-2); }
+.seg__b.is-on { background: var(--accent-dim); color: var(--accent); }
+
+.sitesel { display: block; }
+.sitesel__i {
+  min-height: 40px;
+  padding: 0 30px 0 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239aa9bd' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 8px center / 15px;
+  font-size: 13px;
+  appearance: none;
+  cursor: pointer;
+}
+
+.btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  min-height: 40px;                      /* touch target (§10) */
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--card);
+  font-size: 13px; font-weight: 550;
+  cursor: pointer;
+}
+.btn:hover { border-color: rgba(255, 255, 255, .18); background: var(--card-2); }
+
+.btn--accent {
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.btn--accent:hover { background: #6b9fff; border-color: transparent; }
+
+.btn--ghost { min-height: 32px; padding: 0 10px; }
+
+.btn--icon {
+  min-width: 40px; min-height: 40px;
+  padding: 0; justify-content: center;
+  border-color: transparent; background: none;
+  color: var(--ink-2);
+}
+.btn--icon:hover { background: var(--card-2); color: var(--ink); }
+
+.top__live {
+  padding-top: 12px; padding-bottom: 14px;
+  flex-direction: row; flex-wrap: wrap; gap: 10px; align-items: center;
+}
+
+.live {
+  display: inline-flex; align-items: center; gap: 7px;
+  color: var(--ink-3);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.live__dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--up);
+  box-shadow: 0 0 0 3px rgba(63, 185, 80, .16);
+}
+.live.is-paused .live__dot { background: var(--ink-3); box-shadow: none; }
+.live.is-bad .live__dot { background: var(--down); box-shadow: 0 0 0 3px rgba(248, 81, 73, .16); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .live:not(.is-paused):not(.is-bad) .live__dot { animation: pulse 2.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 6px rgba(63, 185, 80, 0); } }
+}
+
+.err {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 5px 5px 5px 11px;
+  border: 1px solid rgba(248, 81, 73, .35);
+  border-radius: var(--r-sm);
+  background: rgba(248, 81, 73, .10);
+  color: var(--down);
+  font-size: 12px;
+}
+.err .btn { color: var(--ink); }
+
+/* --- board grid ------------------------------------------------------ */
+
+.wrap {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: var(--gut) var(--gut) 40px;
+  display: grid;
+  gap: var(--gap);
+}
+
+.kpis { display: grid; gap: var(--gap); }
+
+.card {
+  position: relative;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--card);
+  min-width: 0;                          /* so a table cannot stretch the grid */
+}
+
+.card__head { margin-bottom: 13px; }
+
+.card__head h2 {
+  font-size: 13px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.card__sub {
+  margin-top: 4px;
+  color: var(--ink-3);
+  font-size: 12px; line-height: 1.45;
+}
+
+.sub {
+  margin-bottom: 8px;
+  color: var(--ink-3);
+  font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase;
+}
+
+/* --- KPI tiles ------------------------------------------------------- */
+
+.kpi { overflow: hidden; padding-bottom: 34px; }
+
+.kpi__label {
+  font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.kpi__val { margin-top: 7px; }
+
+/* Tabular figures on purpose, against the anti-pattern's general advice: this
+   number is replaced every 15 seconds, and proportional digits make it twitch
+   sideways on each refresh. */
+.kpi__val .num {
+  font-size: 31px; font-weight: 640; letter-spacing: -.02em; line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+
+.kpi__meta {
+  margin-top: 8px;
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  min-height: 21px;
+}
+
+.kpi__note { color: var(--ink-3); font-size: 12px; }
+
+/* The arrow, not the colour, is what carries the direction (§10). */
+.delta {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 2px 7px;
+  border-radius: 100px;
+  font-size: 12px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.delta--up   { background: rgba(63, 185, 80, .10);  color: var(--up); }
+.delta--down { background: rgba(248, 81, 73, .10);  color: var(--down); }
+.delta--flat { background: var(--card-2); color: var(--ink-3); }
+.delta--new  { background: var(--accent-dim); color: var(--accent); }
+
+.kpi__spark {
+  position: absolute; inset: auto 0 0 0;
+  height: 42px;
+  pointer-events: none;
+}
+.kpi__spark svg { display: block; width: 100%; height: 100%; }
+
+/* --- funnel ---------------------------------------------------------- */
+
+/* The card is a column so the funnel can take the height the chart beside it
+   has, instead of leaving a pale gap under the last stage. */
+.card--funnel { display: flex; flex-direction: column; }
+.funnel { flex: 1; display: grid; gap: 2px; align-content: space-between; }
+
+.fstep { display: grid; gap: 5px; }
+
+.fstep__of {
+  color: var(--ink-3);
+  font-size: 11px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.fstep__top {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+}
+
+.fstep__name { font-size: 13px; color: var(--ink-2); }
+
+.fstep__n {
+  font-size: 15px; font-weight: 640;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The bar is centred, so the block reads as a funnel — but the WIDTH is a plain
+   linear share of the first stage, not a drawn trapezoid. */
+.fstep__bar { height: 28px; display: grid; justify-items: center; }
+.fstep__fill {
+  height: 100%; border-radius: 3px; min-width: 3px;
+  transition: width .7s cubic-bezier(.22, 1, .36, 1), filter .15s ease;
+}
+.fstep:hover .fstep__fill { filter: brightness(1.16); }
+@media (prefers-reduced-motion: reduce) { .fstep__fill { transition: none; } }
+
+/* Keyed by the step's own index, not by nth-child: the drop-off rows sit
+   between the steps, so nth-child counts 1, 3, 5, 7 and three of the four
+   bars would silently have no colour at all. */
+.fstep[data-i="0"] .fstep__fill { background: linear-gradient(180deg, #4880e0, var(--s-view)); }
+.fstep[data-i="1"] .fstep__fill { background: linear-gradient(180deg, #5f9bff, var(--s-click)); }
+.fstep[data-i="2"] .fstep__fill { background: linear-gradient(180deg, #8ab6ff, var(--s-lead)); }
+.fstep[data-i="3"] .fstep__fill { background: linear-gradient(180deg, #bcd4ff, var(--s-conv)); }
+
+.fdrop {
+  display: flex; align-items: center; gap: 6px; justify-content: center;
+  padding: 3px 0;
+  color: var(--ink-3);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+.fdrop svg { width: 11px; height: 11px; opacity: .8; flex: none; }
+.fdrop__lost { color: var(--ink-3); opacity: .75; }
+.fdrop--up { color: var(--warn); }
+.fdrop:has(.fdrop--up) svg { color: var(--warn); opacity: 1; }
+
+/* --- plots ----------------------------------------------------------- */
+
+/* Fixed heights so the skeleton and the rendered chart occupy the same box and
+   nothing jumps when data lands — and tall enough to include the axis band. */
+.plot { position: relative; }
+.plot--series { height: 230px; }
+.plot--donut  { height: 168px; }
+.plot canvas { display: block; }
+
+.legend {
+  display: flex; flex-wrap: wrap; gap: 6px 14px;
+  margin-bottom: 11px;
+}
+.legend--col { flex-direction: column; gap: 9px; margin: 0; }
+
+.lg {
+  display: inline-flex; align-items: center; gap: 7px;
+  color: var(--ink-2);
+  font-size: 12px;
+}
+.lg__sw { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+.lg__n { color: var(--ink); font-variant-numeric: tabular-nums; }
+.lg__pc { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+.donut { display: grid; gap: 14px; align-items: center; }
+
+/* --- tables ---------------------------------------------------------- */
+
+/* A wide table scrolls inside its own box rather than pushing the page (§6). */
+.tbl-scroll { overflow-x: auto; overscroll-behavior-x: contain; }
+
+.tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tbl th {
+  padding: 0 10px 7px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-3);
+  font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.tbl td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--line-2);
+  white-space: nowrap;
+}
+.tbl tr:last-child td { border-bottom: 0; }
+/* A row responds to the pointer by changing colour, never by moving. */
+.tbl tbody tr { transition: background-color .15s ease; }
+.tbl tbody tr:hover { background: var(--card-2); }
+.tbl th:first-child, .tbl td:first-child { padding-left: 0; }
+.tbl th:last-child,  .tbl td:last-child  { padding-right: 0; }
+.tbl .r { text-align: right; }
+.tbl .mut { color: var(--ink-3); }
+
+.cell { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
+.flag {
+  width: 18px; height: 13px; flex: none;
+  border-radius: 2px;
+  background: var(--card-2);
+  object-fit: cover;
+}
+
+/* The events column carries its own share as a hairline rule under the number —
+   the one place a bar is cheaper than a second column. */
+.share {
+  display: block; height: 3px; margin-top: 5px; margin-left: auto;
+  width: 62px; max-width: 100%;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, .07);
+  overflow: hidden;
+}
+.share__f {
+  display: block; height: 100%;
+  border-radius: 2px; background: var(--s-click);
+  transition: width .55s cubic-bezier(.22, 1, .36, 1);
+}
+@media (prefers-reduced-motion: reduce) { .share__f { transition: none; } }
+
+.tag {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 8px;
+  border-radius: 100px;
+  background: var(--card-2);
+  font-size: 11.5px; font-weight: 550;
+}
+.tag__dot { width: 6px; height: 6px; border-radius: 50%; flex: none; }
+
+.tbl--tail tbody tr { transition: background .5s ease; }
+.tbl--tail tbody tr.is-new { background: var(--accent-dim); }
+
+/* --- monetisation / health ------------------------------------------- */
+
+.money { display: grid; gap: 20px; }
+.money__col { min-width: 0; }
+
+.health { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.hs {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--card-2);
+  font-size: 12.5px;
+}
+.hs__n { font-weight: 640; font-variant-numeric: tabular-nums; }
+.hs__l { color: var(--ink-3); }
+.hs__dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+
+/* --- states ---------------------------------------------------------- */
+
+/* First load only. A refetch holds the previous render instead of flashing a
+   skeleton back over it. */
+.is-loading .num,
+.is-loading .fstep__name, .is-loading .fstep__n {
+  color: transparent;
+  background: linear-gradient(90deg, var(--card-2), #222b36, var(--card-2));
+  border-radius: 4px;
+}
+.is-loading .fstep__fill { background: var(--card-2) !important; }
+.is-loading .plot { background: var(--card-2); border-radius: var(--r-sm); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .is-loading .num,
+  .is-loading .plot { animation: shimmer 1.4s ease-in-out infinite; }
+  @keyframes shimmer { 50% { opacity: .55; } }
+}
+
+.is-stale { opacity: .55; transition: opacity .2s; }
+
+.note {
+  padding: 10px 0 2px;
+  color: var(--ink-3);
+  font-size: 12.5px;
+}
+
+/* --- footer ---------------------------------------------------------- */
+
+.foot {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 22px var(--gut) 38px;
+  display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: center;
+  border-top: 1px solid var(--line);
+}
+
+.foot a {
+  display: inline-flex; align-items: center; gap: 7px;
+  min-height: 40px;
+  padding: 0 4px;
+  color: var(--ink-2);
+  font-size: 13px;
+  text-decoration: underline;
+  text-decoration-color: rgba(154, 169, 189, .35);
+  text-underline-offset: 4px;
+  text-decoration-thickness: 1px;
+}
+.foot a:hover { color: var(--ink); text-decoration-color: currentColor; }
+.foot .ico.solid { fill: currentColor; stroke: none; }
+
+/* --- modal ----------------------------------------------------------- */
+
+/* On phones it is a full-screen sheet, not a floating window (§5). */
+.modal { position: fixed; inset: 0; z-index: 50; display: flex; }
+.modal[hidden] { display: none; }
+
+.modal__scrim { position: absolute; inset: 0; background: rgba(2, 5, 10, .68); }
+
+.modal__box {
+  position: relative;
+  display: flex; flex-direction: column;
+  width: 100%; max-height: 100%;
+  background: var(--card);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.modal__head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 10px 14px var(--gut);
+  border-bottom: 1px solid var(--line);
+  flex: none;
+}
+.modal__head h2 { font-size: 16px; font-weight: 640; }
+
+.modal__body {
+  padding: 16px var(--gut) 28px;
+  overflow-y: auto;
+  display: grid; gap: 14px;
+  color: var(--ink-2);
+  font-size: 14px; line-height: 1.62;
+}
+.modal__body strong { color: var(--ink); font-weight: 620; }
+.modal__body em { color: var(--ink); font-style: normal; font-weight: 550; }
+
+/* --- chart tooltip ---------------------------------------------------- */
+
+/* Built in HTML rather than on the canvas: it needs the page's own type,
+   tabular figures and a swatch per series. */
+.tip {
+  position: absolute; top: 0; left: 0;
+  min-width: 152px;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: rgba(26, 33, 43, .96);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .14s ease, transform .1s cubic-bezier(.22, 1, .36, 1);
+  will-change: transform;
+  z-index: 5;
+}
+@media (prefers-reduced-motion: reduce) { .tip { transition: opacity .14s ease; } }
+
+.tip__h {
+  margin-bottom: 7px; padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-2);
+  font-size: 11.5px;
+}
+.tip__r, .tip__t { display: flex; align-items: center; gap: 7px; padding: 2px 0; }
+.tip__t {
+  margin-top: 5px; padding-top: 6px;
+  border-top: 1px solid var(--line);
+}
+.tip__sw { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+.tip__l { color: var(--ink-2); margin-right: auto; }
+.tip__v { color: var(--ink); font-weight: 600; }
+
+/* --- demo buttons ------------------------------------------------------ */
+
+.card__head--row { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: flex-start; }
+.card__head--row > div:first-child { min-width: 0; flex: 1 1 260px; }
+
+.demo { display: flex; flex-wrap: wrap; gap: 8px; }
+.demo__b { background: var(--card-2); }
+.demo__b:disabled { opacity: .6; cursor: default; }
+.demo__l { white-space: nowrap; }
+
+.ico--sm { width: 14px; height: 14px; color: var(--ink-3); }
+
+/* --- entrance ---------------------------------------------------------- */
+
+/* Once, on the first paint. A refresh never replays it — the blocks are
+   already there and a re-entrance would read as a page reload. */
+@media (prefers-reduced-motion: no-preference) {
+  .wrap > * {
+    animation: rise .5s cubic-bezier(.22, 1, .36, 1) backwards;
+  }
+  .wrap > :nth-child(1) { animation-delay: .02s; }
+  .wrap > :nth-child(2) { animation-delay: .07s; }
+  .wrap > :nth-child(3) { animation-delay: .11s; }
+  .wrap > :nth-child(4) { animation-delay: .15s; }
+  .wrap > :nth-child(5) { animation-delay: .19s; }
+  .wrap > :nth-child(6) { animation-delay: .22s; }
+  .wrap > :nth-child(7) { animation-delay: .25s; }
+  .wrap > :nth-child(8) { animation-delay: .28s; }
+  @keyframes rise { from { opacity: 0; transform: translateY(10px); } }
+}
+
+/* =========================================================================
+   ≥768px — the KPI row becomes 2×2; funnel and chart stay full width (§6)
+   ========================================================================= */
+@media (min-width: 768px) {
+  :root { --gut: 24px; --gap: 16px; }
+
+  .top__in { flex-direction: row; align-items: flex-start; justify-content: space-between; gap: 24px; }
+  .top__live { align-items: center; }
+  .controls { flex: none; }
+
+  .kpis { grid-template-columns: repeat(2, 1fr); }
+  .card { padding: 17px; }
+  .kpi { padding-bottom: 38px; }
+  .kpi__val .num { font-size: 34px; }
+
+  .money { grid-template-columns: 1fr 1fr; gap: 26px; }
+  .donut { grid-template-columns: 168px 1fr; gap: 22px; }
+
+  .modal { align-items: center; justify-content: center; padding: 24px; }
+  .modal__box { max-width: 620px; border-radius: var(--r); max-height: calc(100vh - 48px); }
+}
+
+/* =========================================================================
+   ≥1100px — four tiles across; the two heavy blocks share a row (§6)
+   ========================================================================= */
+@media (min-width: 1100px) {
+  .wrap { grid-template-columns: repeat(12, 1fr); }
+
+  .kpis { grid-column: 1 / -1; grid-template-columns: repeat(4, 1fr); }
+
+  .card--funnel { grid-column: span 5; }
+  .card--series { grid-column: span 7; }
+  .card--geo    { grid-column: span 7; }
+  .card--dev    { grid-column: span 5; }
+  .card--tail   { grid-column: 1 / -1; }
+  .card--money  { grid-column: span 8; }
+  .card--health { grid-column: span 4; }
+
+  .plot--series { height: 268px; }
+  .kpi__val .num { font-size: 36px; }
+
+  /* Stretched across a tall column, a row of chips reads as a gap; laid out as
+     a label-and-figure list it reads as a report. */
+  .card--health .health { flex-direction: column; align-items: stretch; gap: 7px; }
+  .card--health .hs { justify-content: space-between; }
+  .card--health .hs__n { order: 3; margin-left: auto; font-size: 14px; }
+  .card--health .hs__l { color: var(--ink-2); }
+}

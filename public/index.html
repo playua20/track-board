@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Track Board — live server-side tracking</title>
+<meta name="description" content="A live dashboard over a server-side tracking pipeline: events captured at the edge, leads, postback-settled conversions and CAPI delivery.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" href="/app.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" defer></script>
+<script src="/app.js" defer></script>
+</head>
+<body>
+
+<header class="top">
+  <div class="top__in">
+    <div class="brand">
+      <span class="brand__mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M3 17.5 8.5 11l4 4L21 6" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/><path d="M15.5 6H21v5.5" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </span>
+      <span class="brand__txt">
+        <span class="brand__name">Track&nbsp;Board</span>
+        <span class="brand__sub">Live data from a server-side tracking pipeline I built — events captured at the edge, conversions settled by postback.</span>
+      </span>
+    </div>
+
+    <!-- One filter row, above everything it scopes: every block below obeys it. -->
+    <div class="controls">
+      <div class="seg" role="group" aria-label="Period">
+        <button type="button" class="seg__b" data-period="24h">24h</button>
+        <button type="button" class="seg__b" data-period="7d">7d</button>
+        <button type="button" class="seg__b is-on" data-period="30d" aria-pressed="true">30d</button>
+        <button type="button" class="seg__b" data-period="all">All</button>
+      </div>
+
+      <label class="sitesel" id="siteWrap" hidden>
+        <span class="vh">Source</span>
+        <select id="site" class="sitesel__i"></select>
+      </label>
+
+      <button type="button" class="btn btn--accent" id="howBtn"
+              aria-expanded="false" aria-controls="howModal">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.2a2.5 2.5 0 1 1 3.3 2.4c-.6.2-.9.8-.9 1.4v.4"/><path d="M12 17h.01"/></svg>
+        <span>How it works</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="top__in top__live">
+    <p class="live" id="live">
+      <span class="live__dot" aria-hidden="true"></span>
+      <span id="liveTxt">Connecting…</span>
+    </p>
+    <p class="err" id="err" hidden role="status">
+      <span id="errTxt"></span>
+      <button type="button" class="btn btn--ghost" id="retry">Retry</button>
+    </p>
+  </div>
+</header>
+
+<main class="wrap" id="board">
+
+  <!-- 4.2 — KPI row -->
+  <section class="kpis" aria-label="Headline figures">
+    <article class="card kpi" id="kpiEvents">
+      <h2 class="kpi__label">Events</h2>
+      <p class="kpi__val"><span class="num" data-k="events">—</span></p>
+      <p class="kpi__meta"><span class="delta" data-d="events"></span><span class="kpi__note" data-n="events"></span></p>
+      <div class="kpi__spark" data-spark="events" aria-hidden="true"></div>
+    </article>
+    <article class="card kpi" id="kpiLeads">
+      <h2 class="kpi__label">Leads</h2>
+      <p class="kpi__val"><span class="num" data-k="leads">—</span></p>
+      <p class="kpi__meta"><span class="delta" data-d="leads"></span><span class="kpi__note" data-n="leads"></span></p>
+      <div class="kpi__spark" data-spark="leads" aria-hidden="true"></div>
+    </article>
+    <article class="card kpi" id="kpiConv">
+      <h2 class="kpi__label">Conversions</h2>
+      <p class="kpi__val"><span class="num" data-k="conv">—</span></p>
+      <p class="kpi__meta"><span class="delta" data-d="conv"></span><span class="kpi__note" data-n="conv"></span></p>
+      <div class="kpi__spark" data-spark="conv" aria-hidden="true"></div>
+    </article>
+    <article class="card kpi" id="kpiRev">
+      <h2 class="kpi__label">Revenue</h2>
+      <p class="kpi__val"><span class="num" data-k="rev">—</span></p>
+      <p class="kpi__meta"><span class="delta" data-d="rev"></span><span class="kpi__note" data-n="rev"></span></p>
+      <div class="kpi__spark" data-spark="rev" aria-hidden="true"></div>
+    </article>
+  </section>
+
+  <!-- 4.3 / 4.4 — the two blocks that carry the page -->
+  <section class="card card--funnel" aria-labelledby="hFunnel">
+    <div class="card__head">
+      <h2 id="hFunnel">Funnel</h2>
+      <p class="card__sub">Where events are lost, and what the network settled</p>
+    </div>
+    <div class="funnel" id="funnel"></div>
+  </section>
+
+  <section class="card card--series" aria-labelledby="hSeries">
+    <div class="card__head">
+      <h2 id="hSeries">Events over time</h2>
+      <p class="card__sub" id="seriesSub"></p>
+    </div>
+    <div class="legend" id="seriesLegend"></div>
+    <div class="plot plot--series"><canvas id="chSeries"></canvas></div>
+    <div class="vh" id="seriesTable"></div>
+  </section>
+
+  <!-- 4.5 / 4.6 -->
+  <section class="card card--geo" aria-labelledby="hGeo">
+    <div class="card__head">
+      <h2 id="hGeo">Geography</h2>
+      <p class="card__sub">Country is read from the request at the edge, never from the browser</p>
+    </div>
+    <div class="tbl-scroll">
+      <table class="tbl" id="geoTbl">
+        <thead><tr>
+          <th scope="col">Country</th>
+          <th scope="col" class="r">Events</th>
+          <th scope="col" class="r">Leads</th>
+          <th scope="col" class="r">CR</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card card--dev" aria-labelledby="hDev">
+    <div class="card__head">
+      <h2 id="hDev">Devices</h2>
+      <p class="card__sub">Parsed server-side from the user-agent</p>
+    </div>
+    <div class="donut">
+      <div class="plot plot--donut"><canvas id="chDev"></canvas></div>
+      <div class="legend legend--col" id="devLegend"></div>
+    </div>
+    <div class="vh" id="devTable"></div>
+  </section>
+
+  <!-- 4.7 -->
+  <section class="card card--tail" aria-labelledby="hTail">
+    <div class="card__head card__head--row">
+      <div>
+        <h2 id="hTail">Live events</h2>
+        <p class="card__sub">The last ten rows to reach the database. Send one yourself — your own country and device will be read from the request.</p>
+      </div>
+      <div class="demo">
+        <button type="button" class="btn demo__b" data-demo="pageview">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+          <span class="demo__l">Send a pageview</span>
+        </button>
+        <button type="button" class="btn demo__b" data-demo="lead">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span class="demo__l">Send a lead</span>
+        </button>
+      </div>
+    </div>
+    <div class="tbl-scroll">
+      <table class="tbl tbl--tail" id="tailTbl">
+        <thead><tr>
+          <th scope="col">Time</th>
+          <th scope="col">Type</th>
+          <th scope="col">Country</th>
+          <th scope="col">Device</th>
+          <th scope="col">Browser</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 4.8 -->
+  <section class="card card--money" aria-labelledby="hMoney">
+    <div class="card__head">
+      <h2 id="hMoney">Monetisation</h2>
+      <p class="card__sub">What the conversions were attributed to, and where the traffic came from</p>
+    </div>
+    <div class="money">
+      <div class="money__col">
+        <h3 class="sub">By ad</h3>
+        <div class="tbl-scroll">
+          <table class="tbl" id="adTbl">
+            <thead><tr>
+              <th scope="col">Campaign</th><th scope="col">Ad</th>
+              <th scope="col" class="r">Conv.</th><th scope="col" class="r">Revenue</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="money__col">
+        <h3 class="sub">By source</h3>
+        <div class="tbl-scroll">
+          <table class="tbl" id="refTbl">
+            <thead><tr>
+              <th scope="col">Source</th><th scope="col" class="r">Events</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4.9 -->
+  <section class="card card--health" aria-labelledby="hHealth">
+    <div class="card__head"><h2 id="hHealth">Delivery health</h2></div>
+    <div class="health" id="health"></div>
+  </section>
+
+</main>
+
+<footer class="foot"></footer>
+
+<!-- 5 — the only long text on the page.
+     Canonical source: README.md, between its own modal:start / modal:end
+     markers. Edit the two together. -->
+<div class="modal" id="howModal" role="dialog" aria-modal="true" aria-labelledby="howTitle" hidden>
+  <div class="modal__scrim" data-close></div>
+  <div class="modal__box" role="document">
+    <div class="modal__head">
+      <h2 id="howTitle">How it works</h2>
+      <button type="button" class="btn btn--icon" data-close aria-label="Close">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal__body">
+      <!-- modal:start -->
+      <p><strong>What this page shows.</strong> Every figure here is a real row in a
+      Postgres database, written by a tracking endpoint of my own. Nothing is seeded and
+      nothing is simulated: the traffic is whatever has actually reached the pipeline in
+      the selected period, which on a portfolio project is modest by definition.</p>
+
+      <p><strong>How an event is captured.</strong> A one-line snippet on a page fires a
+      POST to a serverless endpoint. The <em>browser</em> sends almost nothing — a type, a
+      site name, the click ids in the address bar. Country, city, device, OS and browser
+      are read from the request itself at the edge, so an ad blocker that kills a
+      third-party pixel does not remove the event, and a spoofed client value cannot
+      reach the database. The visitor's IP is salted and hashed before storage; it is
+      counted, never kept.</p>
+
+      <p><strong>Why a conversion appears after a lead.</strong> A lead is the visitor's
+      action — a form sent. A conversion is the advertiser's verdict on it, and it
+      arrives later, from their server, as a <em>postback</em>: a plain HTTP call carrying
+      the click id, a status and a payout. The click id is what ties the two together,
+      which is why a conversion can be approved, left pending, reversed, or land with no
+      matching click at all. Those four outcomes are in the funnel and in the figures
+      below it.</p>
+
+      <p><strong>What delivery means.</strong> Once a conversion is settled it is worth
+      telling the ad platform about, so it can optimise on it. That is a Conversions API
+      call — server to server, with the identifiers hashed, a deduplication key so a
+      browser pixel and this call are not counted twice, and a retry queue for the calls
+      that fail. <em>Delivery health</em> at the foot of the page is that queue's own
+      record: delivered, failed, skipped, and how long the round trip took.</p>
+      <!-- modal:end -->
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

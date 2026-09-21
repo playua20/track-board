@@ -1,0 +1,17 @@
+{
+  "name": "track-board",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Presentation-grade dashboard over server-side tracking data (Vercel + Node + Supabase)",
+  "scripts": {
+    "dev": "node --env-file=.env.local dev.mjs",
+    "db:apply": "node --env-file=.env.local db/apply.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0"
+  },
+  "devDependencies": {
+    "pg": "^8.13.0"
+  }
+}
