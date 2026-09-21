@@ -1,13 +1,38 @@
-# Track Board
+# Track Board — live AdTech dashboard
 
-A live dashboard over a server-side tracking pipeline: events captured at the
-edge, leads, postback-settled conversions, and the Conversions API delivery
-queue behind them.
+A **presentation-grade dashboard over a server-side tracking pipeline**: events
+captured at the edge, leads, postback-settled conversions, and the Conversions
+API delivery queue behind them.
+
+**Live: https://track-board-psi.vercel.app** — press *Send a lead* and watch
+your own event arrive in the table, with the country and device the server read
+from your request.
 
 Every figure on the page is a row in Postgres. Nothing is seeded, nothing is
 simulated, and there is no demo mode — on a quiet day the page shows a quiet
-day. Two buttons let a visitor write an event of their own and watch it arrive,
-with their own country and device read from the request.
+day.
+
+**What a reader can verify in a minute:**
+
+- press a demo button and find the new row in *Live events*, geolocated;
+- switch the period and watch the funnel, the chart and the deltas re-scope;
+- read *Delivery health*: it reconciles its own figures against the Conversions
+  tile and names where the calls actually went, rather than leaving the
+  difference to be guessed at;
+- open *How it works* for the four paragraphs behind all of it.
+
+**The engineering that is not obvious from the screenshot:** a funnel whose
+stages are nested by construction, so it cannot widen in the middle on any
+data; a continuous time axis built in SQL with `generate_series`, because the
+source series skips hours that had no events and a chart drawn from it invents
+a slope across every gap; period-over-period deltas from a single extra
+aggregation instead of a schema change; and a palette run through a contrast
+validator against the surface it actually renders on.
+
+Portfolio piece for an **Affiliate / AdTech front-end developer**. The pipeline
+that writes this data is a separate project — this one is the read side, and
+the split is the point: ingestion and presentation deploy, fail and scale
+independently.
 
 ---
 

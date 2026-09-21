@@ -11,3 +11,5 @@ CLAUDE.md
 # on disk, neither belongs in a public repository.
 SPEC.md
 docs/
+
+.vercel
