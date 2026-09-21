@@ -71,6 +71,8 @@ export default async function handler(req, res) {
     res.status(200).json({
       ...data,
       funnel:    detail.funnel || null,
+      // Ours replaces dashboard_stats' byAd — same rows, split by status.
+      byAd:      detail.byAd || data.byAd || [],
       capiDest:  detail.capiDest || [],
       capiStale: detail.capiStale ?? 0,
       geo:    detail.geo || [],

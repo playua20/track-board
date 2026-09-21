@@ -175,6 +175,28 @@ as $$
                   where d.status = 'delivered' and cv.status <> 'approved'
                     and (p_since is null or d.created_at >= p_since)
                     and (p_site is null or exists (select 1 from cvp where cvp.id = d.conversion_id))),
+    /* Per-ad totals BY STATUS, replacing dashboard_stats' byAd.
+       That one counts conversions of every status in one column while summing
+       revenue from approved ones only — so an ad with an approved $18.00, a
+       rejected $9.00 and an approved $7.50 reads "3 conversions · $25.50", and
+       a lone pending one reads "1 conversion · $0.00". Both are true and
+       together they are misleading: two columns side by side on different
+       bases, with nothing saying so. */
+    'byAd', (select coalesce(jsonb_agg(to_jsonb(x) order by x.revenue desc, x.approved desc), '[]') from (
+               select c.sub1 as campaign, c.sub3 as ad, c.matched,
+                      count(*) filter (where c.status = 'approved')::int as approved,
+                      count(*) filter (where c.status = 'pending')::int  as pending,
+                      count(*) filter (where c.status = 'rejected')::int as rejected,
+                      coalesce(sum(c.payout) filter (where c.status = 'approved'), 0)::float8 as revenue
+               from conversions c
+               where (p_site is null or exists (
+                        select 1 from events e where e.id = c.event_id and e.site = p_site))
+                 and (p_since is null or c.created_at >= p_since)
+               -- matched is part of the key: an unattributed postback has no
+               -- campaign to name, and must not be folded in with a matched
+               -- click that merely arrived without ad macros.
+               group by 1, 2, 3
+               order by revenue desc, approved desc limit 10) x),
     'bucket', (select unit from step),
     'series', (select coalesce(jsonb_agg(to_jsonb(s) order by s.t), '[]') from (
                  select a.t,

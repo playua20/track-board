@@ -869,27 +869,24 @@
       ? ads.map(r => {
           /* A postback carries the ad macros of the click it was matched to.
              When it matched nothing — a click id this tracker has never seen —
-             there is no campaign and no ad to name, and dashboard_stats emits
-             an em dash for both. Two blank cells read as missing data; this is
-             the opposite, a case the pipeline handles on purpose, so the row
-             says what it is. */
-          const orphan = r.campaign === '—' && r.ad === '—';
-          /* "Unattributed" is the correct word and it explains nothing on its
-             own — the explanation was in a title, and a title is not read.
-             The row says what happened, in the row. */
+             there is no campaign and no ad to name. Two blank cells read as
+             missing data; this is the opposite, a case the pipeline handles on
+             purpose, so the row says what it is, in the row: a title attribute
+             is where an explanation goes to be unread.
+
+             Not "No click" either: the network DID report one, and a reader who
+             takes this for organic traffic has it backwards — organic traffic
+             produces no postback at all. What is missing is OUR record. */
+          const orphan = r.matched === false;
           return `<tr${orphan ? ' class="is-orphan"' : ''}>
             <td${orphan ? ' colspan="2"' : ''}>${
               orphan
-                /* Not "No click": the network DID report one, and a reader who
-                   takes this for organic traffic has it backwards — organic
-                   traffic never produces a postback at all. What is missing is
-                   our own record of that click. */
                 ? '<span class="cell">' + ico('unlink', 'ico ico--sm') +
                   '<span class="orph"><b>Click id not recognised</b>' +
                   '<i>the network reported a click this tracker never recorded</i></span></span>'
-                : esc(r.campaign)}</td>
-            ${orphan ? '' : `<td class="mut">${esc(r.ad)}</td>`}
-            <td class="r">${int(r.conversions)}</td>
+                : esc(r.campaign || '—')}</td>
+            ${orphan ? '' : `<td class="mut">${esc(r.ad || '—')}</td>`}
+            <td class="r">${int(r.approved)}${pendRej(r)}</td>
             <td class="r">${cash(r.revenue)}</td>
           </tr>`;
         }).join('')
@@ -903,6 +900,17 @@
           <td class="r">${int(r.n)}${share(r.n, top)}</td>
         </tr>`).join('')
       : `<tr><td colspan="2" class="mut">No events in this period</td></tr>`;
+  }
+
+  /* The count in the Conv. column is APPROVED conversions — the ones the money
+     column is summed from, so the two columns finally agree. Anything the
+     network has not settled as approved is named underneath rather than folded
+     silently into the same number. */
+  function pendRej(r) {
+    const bits = [];
+    if (r.pending)  bits.push(`<span class="pr pr--pend">+${int(r.pending)} pending</span>`);
+    if (r.rejected) bits.push(`<span class="pr pr--rej">+${int(r.rejected)} rejected</span>`);
+    return bits.length ? `<span class="prs">${bits.join('')}</span>` : '';
   }
 
   /* `direct` and `internal` are not hosts, and a reader should not have to work

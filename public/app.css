@@ -513,6 +513,13 @@ svg.ico {
 }
 @media (prefers-reduced-motion: reduce) { .share__f { transition: none; } }
 
+/* What the network has NOT settled as approved, named under the count rather
+   than folded into it. */
+.prs { display: block; margin-top: 2px; font-size: 10.5px; white-space: nowrap; }
+.prs .pr + .pr { margin-left: 6px; }
+.pr--pend { color: var(--warn); }
+.pr--rej  { color: var(--down); }
+
 /* The conversion that could not be credited to an ad. Two lines, because the
    first is a fact and the second is the reason for it, and a table cell is the
    one place a reader will not go looking for a tooltip. */

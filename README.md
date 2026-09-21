@@ -96,6 +96,13 @@ It makes two RPC calls, or three when `prev=1`:
     sparkline.
   - a **country table with leads, a conversion rate and a direction**.
     `byCountry` gives events per country and nothing else.
+  - **per-ad totals split by status.** The shared `byAd` counts conversions of
+    every status in one column while summing revenue from approved ones only,
+    so an ad with an approved $18.00, a rejected $9.00 and an approved $7.50
+    reads "3 conversions · $25.50", and a lone pending one reads "1 conversion
+    · $0.00". Both figures are true and together they mislead. The count here
+    is approved — the same basis the money column is summed on — and anything
+    unsettled is named beneath it.
 - **`dashboard_stats`** again over a window of twice the length, when the page
   asks for deltas — see the decision below.
 
