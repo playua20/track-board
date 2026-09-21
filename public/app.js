@@ -1032,26 +1032,83 @@
     `<li><a class="rail__b" href="#${id}" data-label="${label}" aria-label="${label}">` +
     `<svg viewBox="0 0 24 24" aria-hidden="true">${path}</svg></a></li>`).join('');
 
+  /* The rule is "the last section whose top has passed under the header", and
+     it has to be exactly that.
+
+     The first version asked an IntersectionObserver for every section on
+     screen and lit the one with the smallest boundingClientRect.top. That is
+     backwards: a section already scrolled halfway off the top has a large
+     NEGATIVE top, so it beat the section the reader had actually jumped to —
+     click Geography, watch Funnel light up. */
   (function railFollow() {
     const links = new Map($$('.rail__b').map(a => [a.getAttribute('href').slice(1), a]));
-    const seen = new Map();
-    const mark = () => {
-      // The topmost section that is actually on screen wins — not merely the
-      // last one an observer fired for, which on a fast scroll is whichever
-      // callback happened to run last.
-      let best = null, bestTop = Infinity;
-      for (const [id, r] of seen) {
-        if (r.ratio > 0 && r.top < bestTop) { bestTop = r.top; best = id; }
+    const secs = RAIL.map(([id]) => document.getElementById(id)).filter(Boolean);
+    if (!secs.length) return;
+
+    let pinned = null, pinnedUntil = 0;
+    const setOn = ids => links.forEach((a, k) => a.classList.toggle('is-on', ids.has(k)));
+
+    /* From ≥1100px the blocks sit in PAIRS on one grid row — funnel beside the
+       time chart, geography beside devices, monetisation beside delivery
+       health — and a pair shares one top. A spy that must name ONE section per
+       scroll position can therefore never reach the other half of each pair:
+       picking the last that passed hides the left three, picking the first
+       hides the right three. Measured both ways; each left three items dead.
+
+       Both blocks really are on screen, so the rail says so: the unit is the
+       ROW, and every section in the active row lights up. Rows are grouped by
+       measuring in one frame, never cached — heights change as data lands and
+       the whole layout changes at the breakpoints. */
+    const rowOf = (rects, top) => new Set(
+      rects.filter(r => Math.abs(r.top - top) < 8).map(r => r.id));
+
+    function measure() {
+      return secs.map(s => ({ id: s.id, top: s.getBoundingClientRect().top }));
+    }
+
+    function pick() {
+      // A click is an intention. Hold it lit while the smooth scroll is still
+      // travelling, or the spy lights every row on the way past.
+      if (pinned && performance.now() < pinnedUntil) return setOn(pinned);
+      pinned = null;
+
+      // The reading line, just under the sticky header — whose height changes
+      // when it collapses, so it is measured rather than assumed.
+      const line = ($('.top')?.getBoundingClientRect().height || 96) + 26;
+      const rects = measure();
+      const passed = rects.filter(r => r.top - line <= 0);
+
+      let top;
+      if (innerHeight + scrollY >= document.documentElement.scrollHeight - 2) {
+        // The last row is usually too short to ever cross the line on its own.
+        top = Math.max(...rects.map(r => r.top));
+      } else if (passed.length) {
+        top = Math.max(...passed.map(r => r.top));   // the lowest row already read
+      } else {
+        top = Math.min(...rects.map(r => r.top));    // still above the first one
       }
-      links.forEach((a, id) => a.classList.toggle('is-on', id === best));
+      setOn(rowOf(rects, top));
+    }
+
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => { ticking = false; pick(); });
     };
-    const io = new IntersectionObserver(entries => {
-      for (const e of entries) {
-        seen.set(e.target.id, { ratio: e.intersectionRatio, top: e.boundingClientRect.top });
-      }
-      mark();
-    }, { rootMargin: '-96px 0px -55% 0px', threshold: [0, .01, .3] });
-    RAIL.forEach(([id]) => { const el = document.getElementById(id); if (el) io.observe(el); });
+    addEventListener('scroll', onScroll, { passive: true });
+    addEventListener('resize', onScroll, { passive: true });
+
+    links.forEach((a, id) => a.addEventListener('click', () => {
+      // Pin the whole row, not just the icon clicked: otherwise a second icon
+      // joins it the moment the pin expires, which reads as a glitch.
+      const rects = measure();
+      pinned = rowOf(rects, rects.find(r => r.id === id).top);
+      pinnedUntil = performance.now() + 1000;
+      setOn(pinned);
+    }));
+
+    pick();
   })();
 
   /* ------------------------------------------------------------------ *

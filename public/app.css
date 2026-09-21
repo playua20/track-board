@@ -54,7 +54,8 @@
   --r-sm:   6px;
   --gut:    16px;
   --gap:    14px;
-  --rail-w: 68px;
+  --rail-w:   68px;
+  --rail-btn: 42px;
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 
   --lift: 0 1px 2px rgba(0, 0, 0, .45), 0 12px 28px -18px rgba(0, 0, 0, .9);
@@ -679,7 +680,7 @@ svg.ico {
 
   .rail__b {
     position: relative;
-    width: 42px; height: 42px;
+    width: var(--rail-btn); height: var(--rail-btn);
     display: grid; place-items: center;
     border-radius: 9px;
     color: var(--ink-3);
@@ -689,9 +690,15 @@ svg.ico {
   .rail__b:hover { color: var(--ink); background: rgba(255, 255, 255, .055); }
 
   .rail__b.is-on { color: #8fb6ff; background: var(--accent-dim); }
-  /* The marker is a bar on the rail's own edge, not a moving card. */
+
+  /* The marker is a bar on the rail's OWN left edge, not a moving card.
+     Its offset is derived, not eyeballed: the button is centred in the rail's
+     content box, which is the rail width less its 1px right border — so the
+     rail's edge sits (button − (rail − 1px)) / 2 away. Guessing it at −14px
+     put half the 3px bar off-screen at x = −1.5. */
   .rail__b.is-on::before {
-    content: ""; position: absolute; left: -14px; top: 50%;
+    content: ""; position: absolute; top: 50%;
+    left: calc((var(--rail-btn) - (var(--rail-w) - 1px)) / 2);
     width: 3px; height: 20px; margin-top: -10px;
     border-radius: 0 3px 3px 0; background: var(--accent);
   }
