@@ -11,6 +11,13 @@
    =========================================================================== */
 
 :root {
+  /* The page is dark-only, and the browser has to be TOLD so. Without this the
+     native parts it draws itself — the <select> popup, scrollbars, the focus
+     ring on form controls — stay light, and a <select> whose options inherit
+     this page's near-white ink becomes white text on a white list. Measured on
+     Windows/Chrome: the option rows were invisible except the highlighted one. */
+  color-scheme: dark;
+
   /* surfaces — a card is lit from the top, not a flat fill */
   --page:     #090d15;
   --page-2:   #0c111b;
@@ -193,6 +200,12 @@ svg.ico {
   background: linear-gradient(180deg, var(--card-hi), var(--card-lo))
               url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239aa9bd' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 8px center / 15px;
   font-size: 13px; appearance: none; cursor: pointer;
+}
+/* Belt and braces: some platforms draw the popup from the OS and honour these
+   rather than color-scheme. Both are cheap; only one has to work. */
+.sitesel__i option {
+  background: var(--card-2);
+  color: var(--ink);
 }
 
 .btn {
