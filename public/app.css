@@ -482,6 +482,17 @@ svg.ico {
 .tbl tbody tr:hover { background: var(--card-2); }
 
 .cell { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
+
+/* A term that carries an explanation in its title. A dotted underline is the
+   convention for "there is more here" and, unlike a solid one, does not read
+   as a link — nothing on these tables is clickable. Without it the tooltip
+   exists and nobody ever learns it is there. */
+.hint {
+  text-decoration: underline dotted;
+  text-decoration-color: var(--ink-3);
+  text-underline-offset: 3px;
+  cursor: help;
+}
 .flag {
   width: 18px; height: 13px; flex: none;
   border-radius: 2px; background: var(--card-2); object-fit: cover;

@@ -37,9 +37,17 @@
     try { return NAMES ? NAMES.of(c) : null; } catch { return null; }
   };
 
+  /* An empty flag box next to the word "Unknown" reads as a broken image. It is
+     not missing data — it is a request that never passed through the edge, so
+     no country header existed to read. Say that, and draw a globe. */
+  const NO_COUNTRY = 'No country header on the request — it did not pass through the edge (a locally sent event, for instance)';
+
   function flagCell(code) {
     const name = countryName(code);
-    if (!name) return `<span class="cell"><span class="flag" aria-hidden="true"></span><span>Unknown</span></span>`;
+    if (!name) {
+      return `<span class="cell">${ico('globe', 'ico ico--sm')}` +
+        `<span class="mut hint" title="${NO_COUNTRY}">Unknown</span></span>`;
+    }
     return `<span class="cell">` +
       `<img class="flag" src="https://flagcdn.com/w40/${esc(code.toLowerCase())}.png" alt="" loading="lazy" width="18" height="13">` +
       `<span>${esc(name)}</span></span>`;
@@ -59,6 +67,7 @@
     send: '<path d="M22 2 11 13"/><path d="M22 2l-7 20-4-9-9-4z"/>',
     user: '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
     flag: '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V4s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/>',
+    unlink: '<path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 0 1 3.9 8.1"/><path d="m2 2 20 20"/><path d="M8 12h3"/>',
   };
   const ico = (id, cls = 'ico') =>
     `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[id] || ICONS.globe}</svg>`;
@@ -834,12 +843,25 @@
   function money(d) {
     const ads = d.byAd || [];
     $('#adTbl tbody').innerHTML = ads.length
-      ? ads.map(r => `<tr>
-          <td>${esc(r.campaign)}</td>
-          <td class="mut">${esc(r.ad)}</td>
-          <td class="r">${int(r.conversions)}</td>
-          <td class="r">${cash(r.revenue)}</td>
-        </tr>`).join('')
+      ? ads.map(r => {
+          /* A postback carries the ad macros of the click it was matched to.
+             When it matched nothing — a click id this tracker has never seen —
+             there is no campaign and no ad to name, and dashboard_stats emits
+             an em dash for both. Two blank cells read as missing data; this is
+             the opposite, a case the pipeline handles on purpose, so the row
+             says what it is. */
+          const orphan = r.campaign === '—' && r.ad === '—';
+          return `<tr${orphan ? ' class="is-orphan"' : ''}>
+            <td${orphan ? ' colspan="2"' : ''}>${
+              orphan
+                ? '<span class="cell">' + ico('unlink', 'ico ico--sm') +
+                  '<span class="mut hint" title="A postback whose click id was never seen here — recorded and paid, but not credited to any ad">Unattributed</span></span>'
+                : esc(r.campaign)}</td>
+            ${orphan ? '' : `<td class="mut">${esc(r.ad)}</td>`}
+            <td class="r">${int(r.conversions)}</td>
+            <td class="r">${cash(r.revenue)}</td>
+          </tr>`;
+        }).join('')
       : `<tr><td colspan="4" class="mut">No conversions in this period</td></tr>`;
 
     const refs = d.byRef || [];
@@ -860,7 +882,7 @@
     unknown: 'a referrer that could not be parsed',
   };
   const refCell = host => REF_NOTE[host]
-    ? `<span class="cell"><span title="${esc(REF_NOTE[host])}">${esc(host)}</span></span>`
+    ? `<span class="cell"><span class="hint" title="${esc(REF_NOTE[host])}">${esc(host)}</span></span>`
     : `<span class="cell">${esc(host)}</span>`;
 
   function tableAlt(caption, head, rows) {
