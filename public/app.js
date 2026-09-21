@@ -982,16 +982,30 @@
     const approved = Number(d.conversions?.approved) || 0;
     const delivered = Number(d.capi?.delivered) || 0;
 
+    /* One sentence, because it is one thought. Split in two, the second half
+       lost its subject — "a compensating call was sent and accepted" reads as
+       a claim about nothing until the reader works out that it refers to the
+       figure in the sentence before it. And the arithmetic has to close: the
+       corrections are themselves among the delivered calls, so 6 approved plus
+       1 reversed plus 1 that took it back is the 8 at the top of the card. */
     if (reversed > 0) {
-      lines.push(`${int(delivered)} call${delivered === 1 ? '' : 's'} for ${int(approved)} conversion${approved === 1 ? '' : 's'} approved now: ` +
+      const them = reversed === 1 ? 'it' : 'them';
+      let line = `${int(delivered)} call${delivered === 1 ? '' : 's'} for ` +
+        `${int(approved)} conversion${approved === 1 ? '' : 's'} approved now: ` +
         `<b>${int(reversed)}</b> went out before the network ` +
-        `<span class="hint" title="${esc(REVERSAL)}">reversed</span> ${reversed === 1 ? 'it' : 'them'}.`);
+        `<span class="hint" title="${esc(REVERSAL)}">reversed</span> ${them}`;
+      if (fixed > 0) {
+        line += `, and <b>${int(fixed)}</b> more took ${fixed === 1 ? 'it' : 'them'} back`;
+      }
+      lines.push(line + '.');
 
-      // The gap is the only figure here that is a problem: a signal the
-      // platform still believes and we have not withdrawn.
-      lines.push(open === 0
-        ? `<span class="ok">✓ ${fixed === 1 ? 'A compensating call was' : `${int(fixed)} compensating calls were`} sent and accepted.</span>`
-        : `<span class="bad">⚠ ${int(open)} still uncompensated — the platform is optimising on ${open === 1 ? 'a conversion' : 'conversions'} that no longer ${open === 1 ? 'exists' : 'exist'}.</span>`);
+      // The only figure here that is a problem: a signal the platform still
+      // believes and we have not withdrawn. Silence when there is none.
+      if (open > 0) {
+        lines.push(`<span class="bad">⚠ ${int(open)} not taken back yet — the platform is still ` +
+          `optimising on ${open === 1 ? 'a conversion' : 'conversions'} that no longer ` +
+          `${open === 1 ? 'exists' : 'exist'}. The retry sweeper picks ${open === 1 ? 'it' : 'them'} up.</span>`);
+      }
     }
 
     note.hidden = !lines.length;
