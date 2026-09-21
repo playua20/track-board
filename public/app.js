@@ -748,6 +748,7 @@
   /* --- 4.6 devices ----------------------------------------------------- */
 
   let chDev = null;
+  let devTotal = 0;          // read by donutCentre while it draws — see below
 
   function devices(d) {
     const rows = (d.byDevice || []).filter(r => r.n > 0);
@@ -771,7 +772,7 @@
     // Same three cases as the area chart: the sweep is an entrance, not a
     // heartbeat. Replacing `data` wholesale replayed it on every poll.
     const sig = JSON.stringify([labels, values]);
-    if (chDev && chDev.$sig === sig) { chDev.$total = total; return; }
+    if (chDev && chDev.$sig === sig) { devTotal = total; return; }
 
     const cfgData = {
       labels,
@@ -784,6 +785,16 @@
         hoverOffset: 7,
       }],
     };
+
+    /* Set BEFORE the chart is built, not after. donutCentre reads it while it
+       draws, and the first draw happens inside the constructor — so assigning
+       it to the chart afterwards left the hole reading "0" on that frame. With
+       the sweep animation running the next frame corrected it and nobody saw;
+       with `prefers-reduced-motion` there IS no next frame, and the zero stayed
+       on screen for every visitor who asks for less movement.
+       A variable rather than a property on the chart, because on the very
+       first render there is no chart yet to hang it on. */
+    devTotal = total;
 
     if (!chDev) {
       chDev = new Chart($('#chDev'), {
@@ -815,7 +826,6 @@
       chDev.update();
     }
     chDev.$sig = sig;
-    chDev.$total = total;
   }
 
   /* The hole is wasted unless it answers the question the donut raises. */
@@ -825,7 +835,7 @@
       const { ctx, chartArea: a } = c;
       if (!a) return;
       const act = c.getActiveElements();
-      const total = c.$total || 0;
+      const total = devTotal || 0;
       const n = act.length ? c.data.datasets[0].data[act[0].index] : total;
       const lab = act.length ? c.data.labels[act[0].index] : 'events';
       const x = (a.left + a.right) / 2, y = (a.top + a.bottom) / 2;
