@@ -882,8 +882,15 @@
             <td${orphan ? ' colspan="2"' : ''}>${
               orphan
                 ? '<span class="cell">' + ico('unlink', 'ico ico--sm') +
+                  /* The payout is the network's, not ours to withhold: it was
+                     approved and it is owed. Only the CREDIT is missing. Drop
+                     the row and the Revenue tile would report less than the
+                     network actually settled, and this table would stop
+                     summing to it — the same silent discrepancy twice fixed
+                     elsewhere on this page. */
                   '<span class="orph"><b>Click id not recognised</b>' +
-                  '<i>the network reported a click this tracker never recorded</i></span></span>'
+                  '<i>the network reported a click this tracker never recorded — ' +
+                  'the payout still counts, there is just no ad to credit it to</i></span></span>'
                 : esc(r.campaign || '—')}</td>
             ${orphan ? '' : `<td class="mut">${esc(r.ad || '—')}</td>`}
             <td class="r">${int(r.approved)}${pendRej(r)}</td>
