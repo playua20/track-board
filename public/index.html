@@ -248,8 +248,12 @@
 
       <!-- 4.9 -->
       <section class="card card--health" id="sec-health" aria-labelledby="hHealth">
-        <div class="card__head"><h2 id="hHealth">Delivery health</h2></div>
+        <div class="card__head">
+          <h2 id="hHealth">Delivery health</h2>
+          <p class="card__sub">Once a conversion is settled it is sent back to the ad platform, so the platform can optimise on it. This is that queue&rsquo;s own record.</p>
+        </div>
         <div class="health" id="health"></div>
+        <p class="note note--dest" id="healthDest" hidden></p>
       </section>
 
     </main>
@@ -299,6 +303,15 @@
       browser pixel and this call are not counted twice, and a retry queue for the calls
       that fail. <em>Delivery health</em> at the foot of the page is that queue's own
       record: delivered, failed, skipped, and how long the round trip took.</p>
+
+      <p><strong>And where those calls actually go.</strong> With no Meta credentials
+      attached they go to an endpoint of ours that answers with the Graph API's own
+      contract, and the page says so rather than implying otherwise — real delivery to
+      Meta can only be verified inside the account owner's Events Manager, which a
+      visitor cannot open. Attaching <em>META_PIXEL_ID</em> and
+      <em>META_ACCESS_TOKEN</em> changes the destination, not the code; the block below
+      reads the destination off the delivery rows, so it will say the other thing on its
+      own the day that is true.</p>
       <!-- modal:end -->
     </div>
   </div>

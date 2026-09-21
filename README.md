@@ -44,6 +44,14 @@ to server, with the identifiers hashed, a deduplication key so a browser pixel
 and this call are not counted twice, and a retry queue for the calls that fail.
 *Delivery health* at the foot of the page is that queue's own record: delivered,
 failed, skipped, and how long the round trip took.
+
+**And where those calls actually go.** With no Meta credentials attached they go
+to an endpoint of ours that answers with the Graph API's own contract, and the
+page says so rather than implying otherwise — real delivery to Meta can only be
+verified inside the account owner's Events Manager, which a visitor cannot open.
+Attaching *META_PIXEL_ID* and *META_ACCESS_TOKEN* changes the destination, not
+the code; the block below reads the destination off the delivery rows, so it
+will say the other thing on its own the day that is true.
 <!-- modal:end -->
 
 ### The longer version

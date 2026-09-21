@@ -127,6 +127,15 @@ as $$
     where (p_site is null or e.site = p_site)
       and (p_since is null or e.created_at >= p_since)
   ),
+  -- Same conversion set dashboard_stats uses for its capi figures, so the
+  -- destination reported beside those figures is the destination they came
+  -- from and not a near-miss.
+  cvp as (
+    select c.id from conversions c
+    where (p_site is null or exists (
+             select 1 from events e where e.id = c.event_id and e.site = p_site))
+      and (p_since is null or c.created_at >= p_since)
+  ),
   evp as (
     select coalesce(country, '??') as country, count(*)::int as events_prev
     from events
@@ -145,6 +154,16 @@ as $$
                  'leads',     count(*) filter (where type = 'lead' or conv),
                  'converted', count(*) filter (where conv))
                from fev),
+    /* WHERE the Conversions API calls actually went. Read from the rows rather
+       than written into the page, because it is a deployment fact that can
+       change: with no META_PIXEL_ID and META_ACCESS_TOKEN attached the
+       pipeline delivers to its own stand-in, which speaks the Graph API
+       contract; attach them and the same code delivers to Meta. A page that
+       hardcoded either answer would be lying the day the other became true. */
+    'capiDest', (select coalesce(jsonb_agg(distinct d.destination), '[]')
+                 from capi_deliveries d
+                 where (p_since is null or d.created_at >= p_since)
+                   and (p_site is null or exists (select 1 from cvp where cvp.id = d.conversion_id))),
     'bucket', (select unit from step),
     'series', (select coalesce(jsonb_agg(to_jsonb(s) order by s.t), '[]') from (
                  select a.t,

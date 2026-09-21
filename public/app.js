@@ -894,6 +894,15 @@
 
   /* --- 4.9 delivery health ------------------------------------------------ */
 
+  /* Where the calls went, taken from the delivery rows themselves. The
+     pipeline sends to Meta when META_PIXEL_ID and META_ACCESS_TOKEN are
+     attached and to its own stand-in otherwise, and a page that stated either
+     one in fixed text would become false the day the other was true. */
+  const DEST = {
+    meta: ['Meta Conversions API', 'Delivered to Meta’s Conversions API endpoint'],
+    sink: ['a stand-in endpoint', 'No Meta credentials are attached, so the calls go to an endpoint of ours that answers with the Graph API’s own contract. Attaching META_PIXEL_ID and META_ACCESS_TOKEN changes the destination, not the code — real CAPI can only be verified inside the account owner’s Events Manager, which a visitor cannot open.'],
+  };
+
   function health(d) {
     const c = d.capi || {};
     const items = [
@@ -906,6 +915,15 @@
       `<span class="hs__n">${int(n)}</span><span class="hs__l">${esc(l)}</span></span>`).join('') +
       `<span class="hs"><span class="hs__n">${int(c.avg_ms)}<span class="hs__l"> ms</span></span>` +
       `<span class="hs__l">average round trip</span></span>`;
+
+    const dests = d.capiDest || [];
+    const note = $('#healthDest');
+    if (!dests.length) { note.textContent = ''; note.hidden = true; return; }
+    note.hidden = false;
+    note.innerHTML = dests.map(k => {
+      const [label, why] = DEST[k] || [esc(k), ''];
+      return `Sent to <span class="hint" title="${esc(why)}">${label}</span>`;
+    }).join(' · ');
   }
 
   /* ------------------------------------------------------------------ *
