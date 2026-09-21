@@ -934,6 +934,10 @@
     sink: ['a stand-in endpoint', 'No Meta credentials are attached, so the calls go to an endpoint of ours that answers with the Graph API’s own contract. Attaching META_PIXEL_ID and META_ACCESS_TOKEN changes the destination, not the code — real CAPI can only be verified inside the account owner’s Events Manager, which a visitor cannot open.'],
   };
 
+  /* "Reversed" is the trade's word for the advertiser retracting a conversion
+     it had already confirmed, and it is not obvious from outside the trade. */
+  const REVERSAL = 'The advertiser retracted a conversion it had already confirmed — a second postback with the same txid, arriving with status=rejected. In lead generation this is usually an order the call centre could not confirm; elsewhere a failed payment, a refund inside the return window, or a fraud check.';
+
   function health(d) {
     const c = d.capi || {};
     const items = [
@@ -969,7 +973,8 @@
     const delivered = Number(d.capi?.delivered) || 0;
     if (stale > 0) {
       lines.push(`${int(delivered)} call${delivered === 1 ? '' : 's'} for ${int(approved)} conversion${approved === 1 ? '' : 's'} approved now: ` +
-        `<b>${int(stale)}</b> went out before the network reversed ${stale === 1 ? 'it' : 'them'}.`);
+        `<b>${int(stale)}</b> went out before the network ` +
+        `<span class="hint" title="${esc(REVERSAL)}">reversed</span> ${stale === 1 ? 'it' : 'them'}.`);
     }
 
     note.hidden = !lines.length;
