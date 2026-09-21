@@ -4,7 +4,7 @@ A **presentation-grade dashboard over a server-side tracking pipeline**: events
 captured at the edge, leads, postback-settled conversions, and the Conversions
 API delivery queue behind them.
 
-**Live: https://track-board-psi.vercel.app** — press *Send a lead* and watch
+**Live: https://track-board-live.vercel.app** — press *Send a lead* and watch
 your own event arrive in the table, with the country and device the server read
 from your request.
 
