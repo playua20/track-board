@@ -57,6 +57,11 @@ const readBody = (req) => new Promise((resolve) => {
 });
 
 const serveStatic = async (url, res) => {
+  /* `/events` → events.html, matching the deployment — which only does that
+     because vercel.json sets `cleanUrls`. Vercel does NOT do it by default:
+     without that file `/events` is a 404 in production while this server
+     happily serves it, and the difference is invisible until something is
+     live. It cost exactly that once. */
   const clean = normalize(decodeURIComponent(url.pathname)).replace(/^([/\\])+/, '');
   const candidates = clean === '' ? ['index.html'] : [clean, clean + '.html', join(clean, 'index.html')];
   for (const c of candidates) {
