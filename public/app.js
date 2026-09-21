@@ -104,6 +104,10 @@
     site: null,
     data: null,          // last good payload
     first: true,
+    // True only when the next render answers a DIFFERENT question — the first
+    // one, or a change of period or source. The charts read it to decide
+    // whether they may play their entrance; a poll must never replay it.
+    reveal: true,
     timer: 0,
     lastTouch: Date.now(),
     seen: new Set(),     // keys of rows already in the tail, so only new ones flash
@@ -172,6 +176,7 @@
     money(d);
     health(d);
     emptiness(d);
+    S.reveal = false;          // consumed — the next render is a poll until told otherwise
   }
 
   function emptiness(d) {
@@ -230,32 +235,57 @@
 
     // /api/stats reports the previous window under the database's own names.
     const PREV_KEY = { events: 'total', leads: 'leads', conv: 'conversions', rev: 'revenue' };
-    for (const k of Object.keys(cur)) delta($(`[data-d="${k}"]`), cur[k], d.prev ? d.prev[PREV_KEY[k]] : null);
+    const dirs = {};
+    for (const k of Object.keys(cur)) {
+      dirs[k] = delta($(`[data-d="${k}"]`), cur[k], d.prev ? d.prev[PREV_KEY[k]] : null);
+    }
 
-    sparks(d);
+    sparks(d, dirs);
   }
 
+  /** Renders the chip and returns the direction, which also colours the spark. */
   function delta(el, now, before) {
-    if (before == null) { el.className = 'delta'; el.textContent = ''; return; }
-    if (!before && !now) { el.className = 'delta delta--flat'; el.textContent = 'no change'; return; }
+    if (before == null) { el.className = 'delta'; el.textContent = ''; return 'flat'; }
+    if (!before && !now) { el.className = 'delta delta--flat'; el.textContent = 'no change'; return 'flat'; }
     if (!before) {
       el.className = 'delta delta--new';
       el.innerHTML = '<span aria-hidden="true">↑</span><span>new</span>';
       el.title = 'Nothing in the period before this one to compare against';
-      return;
+      return 'new';
     }
     const v = ((now - before) / before) * 100;
-    const up = v >= 0;
-    el.className = 'delta delta--' + (Math.abs(v) < 0.5 ? 'flat' : up ? 'up' : 'down');
+    const dir = Math.abs(v) < 0.5 ? 'flat' : v > 0 ? 'up' : 'down';
+    el.className = 'delta delta--' + dir;
     // The arrow carries the direction; the colour only reinforces it (§10).
-    el.innerHTML = `<span aria-hidden="true">${Math.abs(v) < 0.5 ? '→' : up ? '↑' : '↓'}</span>` +
+    el.innerHTML = `<span aria-hidden="true">${dir === 'flat' ? '→' : dir === 'up' ? '↑' : '↓'}</span>` +
       `<span>${Math.abs(v) >= 1000 ? '999+' : Math.abs(v).toFixed(Math.abs(v) < 10 ? 1 : 0)}%</span>`;
-    el.title = `${up ? 'Up' : 'Down'} from ${int(before)} in the period before this one`;
+    el.title = `${dir === 'down' ? 'Down' : 'Up'} from ${int(before)} in the period before this one`;
+    return dir;
   }
 
-  /* Sparklines are inline SVG rather than four more canvases: they have to sit
-     behind the tile's own padding and take the card's gradient. */
-  function sparks(d) {
+  /* Sparklines are inline SVG rather than four more canvases: they need the
+     card's own gradient behind them, a marker on the last point, and a colour
+     that comes from the tile's own direction. */
+  const SPARK_COLOUR = { up: '--up', down: '--down', flat: '--accent' };
+
+  /* Which way the line itself is going — the mean of its last third against the
+     mean of the rest. Used when there is no previous period to compare with,
+     which on a young database is most of the time: four identical blue lines
+     say nothing, and the colour of a sparkline is the cheapest thing on the
+     page that carries real information. */
+  function trend(vals) {
+    if (vals.length < 4) return 'flat';
+    const cut = Math.max(1, Math.round(vals.length / 3));
+    const mean = a => a.reduce((x, y) => x + y, 0) / (a.length || 1);
+    const before = mean(vals.slice(0, -cut));
+    const after = mean(vals.slice(-cut));
+    if (!before && !after) return 'flat';
+    if (!before) return 'up';
+    const change = (after - before) / before;
+    return Math.abs(change) < 0.08 ? 'flat' : change > 0 ? 'up' : 'down';
+  }
+
+  function sparks(d, dirs) {
     const rows = d.series || [];
     const pick = {
       events: r => r.pageview + r.click + r.lead + r.test,
@@ -266,71 +296,135 @@
     for (const [k, f] of Object.entries(pick)) {
       const box = $(`[data-spark="${k}"]`);
       const vals = rows.map(r => Number(f(r)) || 0);
+      // The tile's own direction when there is a previous period to compare
+      // against, so the chip and the line agree; otherwise the line's own.
+      const dir = dirs[k] === 'up' || dirs[k] === 'down' ? dirs[k] : trend(vals);
       // A flat line of zeroes says nothing the big number does not already say.
-      box.innerHTML = rows.length > 1 && vals.some(v => v > 0) ? sparkSvg(vals, k) : '';
+      const html = rows.length > 1 && vals.some(v => v > 0)
+        ? sparkSvg(vals, k, SPARK_COLOUR[dir] || '--accent') : '';
+      // Unchanged numbers must not rebuild the node: a poll should leave the
+      // page alone where nothing has moved.
+      if (box.dataset.sig !== html) { box.dataset.sig = html; box.innerHTML = html; }
     }
   }
 
-  function sparkSvg(vals, key) {
-    const W = 100, H = 30, max = Math.max(...vals, 1);
-    const pts = vals.map((v, i) => [
-      (i / (vals.length - 1)) * W,
-      H - (v / max) * (H - 3) - 1.5,
-    ]);
-    const line = pts.map(([x, y], i) => (i ? 'L' : 'M') + x.toFixed(2) + ' ' + y.toFixed(2)).join(' ');
+  function sparkSvg(vals, key, colourVar) {
+    const W = 100, H = 34, PAD = 3;
+    const max = Math.max(...vals, 1);
+    const x = i => (i / (vals.length - 1)) * W;
+    const y = v => H - (v / max) * (H - PAD * 2) - PAD;
+    const pts = vals.map((v, i) => [x(i), y(v)]);
+
+    // A gentle Catmull-Rom-ish smoothing: a sparkline of hourly counts is
+    // spiky enough to read as noise when drawn as raw segments.
+    let line = `M${pts[0][0].toFixed(2)} ${pts[0][1].toFixed(2)}`;
+    for (let i = 1; i < pts.length; i++) {
+      const [px, py] = pts[i - 1], [cx, cy] = pts[i];
+      const mx = (px + cx) / 2;
+      line += ` C${mx.toFixed(2)} ${py.toFixed(2)} ${mx.toFixed(2)} ${cy.toFixed(2)} ${cx.toFixed(2)} ${cy.toFixed(2)}`;
+    }
     const area = `${line} L${W} ${H} L0 ${H} Z`;
     const id = 'sg-' + key;
-    return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
-      <defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="var(--accent)" stop-opacity=".30"/>
-        <stop offset="1" stop-color="var(--accent)" stop-opacity="0"/>
-      </linearGradient></defs>
-      <path d="${area}" fill="url(#${id})"/>
-      <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="1.4"
-            stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
-    </svg>`;
+    const [, ey] = pts[pts.length - 1];
+    const c = `var(${colourVar})`;
+
+    // The paths stretch to the box (`preserveAspectRatio="none"`), which would
+    // squash a circle drawn inside the same SVG into an ellipse. The marker is
+    // therefore an HTML element placed over it, in percentages.
+    return `<span class="spark" style="--sc:${c}">
+      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="${c}" stop-opacity=".38"/>
+            <stop offset="1" stop-color="${c}" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <path d="${area}" fill="url(#${id})"/>
+        <path d="${line}" fill="none" stroke="${c}" stroke-width="2.4" stroke-opacity=".3"
+              stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"
+              style="filter:blur(3px)"/>
+        <path d="${line}" fill="none" stroke="${c}" stroke-width="1.7"
+              stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+      </svg>
+      <span class="spark__dot" style="top:${((ey / H) * 100).toFixed(2)}%"></span>
+    </span>`;
   }
 
   /* --- 4.3 funnel ----------------------------------------------------- */
 
+  /* Each stage is "an event that got at least this far", which is what makes
+     the shape a funnel rather than four counters side by side. board_detail
+     guarantees the nesting; see db/schema.sql. */
+  const STAGES = [
+    ['Events',      'events',    'everything the endpoint recorded'],
+    ['Engaged',     'engaged',   'a click, or a lead sent without one'],
+    ['Leads',       'leads',     'a form actually submitted'],
+    ['Conversions', 'converted', 'approved by the network'],
+  ];
+
   function funnel(d) {
-    const steps = [
-      ['Pageviews',   typeN(d, 'pageview')],
-      ['Clicks',      typeN(d, 'click')],
-      ['Leads',       typeN(d, 'lead')],
-      ['Conversions', Number(d.conversions?.approved) || 0],
-    ];
+    const f = d.funnel || {};
+    const steps = STAGES.map(([label, key]) => [label, Number(f[key]) || 0]);
     const top = Math.max(steps[0][1], 1);
     const box = $('#funnel');
 
-    // Built once, then only the numbers and the widths move — so the bars can
-    // transition instead of being replaced.
-    if (!box.childElementCount) {
-      box.innerHTML = steps.map(([name], i) => (i ? `<div class="fdrop"></div>` : '') + `
-        <div class="fstep" data-i="${i}">
-          <div class="fstep__top"><span class="fstep__name">${esc(name)}</span><span class="fstep__n">0</span></div>
-          <div class="fstep__bar"><span class="fstep__fill" style="width:0%"></span></div>
-          <p class="fstep__of"></p>
-        </div>`).join('');
-    }
+    const sig = JSON.stringify(steps);
+    if (box.dataset.sig === sig) return;      // a poll that changed nothing
+    box.dataset.sig = sig;
 
-    const stepEls = $$('.fstep', box), dropEls = $$('.fdrop', box);
-    steps.forEach(([name, n], i) => {
-      tween($('.fstep__n', stepEls[i]), n, int);
-      const fill = $('.fstep__fill', stepEls[i]);
-      fill.style.width = Math.max(pct(n, top), n ? 2 : 0).toFixed(2) + '%';
-      fill.title = `${int(n)} — ${pctTxt(pct(n, top))} of ${esc(steps[0][0]).toLowerCase()}`;
-      // Only on the last step: between the others the drop-off line already
-      // says what share carried through, and two percentages one line apart
-      // read as a contradiction rather than as two facts.
-      $('.fstep__of', stepEls[i]).textContent =
-        i === steps.length - 1 && top ? `${pctTxt(pct(n, top))} end to end` : '';
-    });
+    const BAND = 25, RAMP = ['--s-view', '--s-click', '--s-lead', '--s-conv'];
+    /* The half-width of a stage, in the funnel's own 0–100 space.
+     *
+     * SQUARE ROOT, not the raw share, and this is the decision that makes the
+     * block readable. Real funnel numbers fall off a cliff — 109 → 21 → 14 → 4
+     * here, and an order of magnitude per step in any account with real
+     * traffic. Drawn at linear width that is one wide band and three threads:
+     * the shape carries no information because every stage below the first is
+     * visually zero. A square-root scale turns the same numbers into
+     * 100 → 44 → 36 → 19, which is the gentle symmetric taper a funnel is
+     * supposed to be, and keeps the ORDER and the relative sizes intact.
+     *
+     * Nothing is hidden by it: the exact count and the exact share are printed
+     * beside every stage, and the drop-off is stated between them. The width
+     * is the silhouette; the figures are the data. */
+    const half = n => (n > 0 ? Math.max(Math.sqrt(n / top) * 100, 3) : 0) / 2;
 
-    steps.slice(1).forEach(([, n], i) => {
-      const before = steps[i][1];
-      dropEls[i].innerHTML = drop(before, n);
-    });
+    // ONE continuous shape. Bands drawn as separate SVGs with the drop-off
+    // notes between them read as four disconnected trapezoids; the reference's
+    // funnel — and every tracker's — is a single silhouette, so the notes move
+    // out to the side and the bands share their edges.
+    const bands = steps.map(([, n], i) => {
+      const a = half(n);
+      // The bottom edge is the NEXT stage's width: the taper is the join
+      // between two true widths, not a drawn shape. The last band closes on
+      // its own width rather than inventing a point.
+      const b = i + 1 < steps.length ? half(steps[i + 1][1]) : a;
+      const y = i * BAND, c = `var(${RAMP[i]})`;
+      return `<defs><linearGradient id="fg-${i}" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="${c}" stop-opacity="1"/>
+          <stop offset="1" stop-color="${c}" stop-opacity=".62"/>
+        </linearGradient></defs>
+        <polygon points="${(50 - a).toFixed(2)},${y} ${(50 + a).toFixed(2)},${y} ${(50 + b).toFixed(2)},${y + BAND} ${(50 - b).toFixed(2)},${y + BAND}"
+                 fill="url(#fg-${i})" style="--fi:${i}">
+          <title>${esc(steps[i][0])}: ${int(n)} — ${pctTxt(pct(n, top))} of ${esc(steps[0][0]).toLowerCase()}</title>
+        </polygon>
+        ${i ? `<line x1="${(50 - a).toFixed(2)}" y1="${y}" x2="${(50 + a).toFixed(2)}" y2="${y}"
+               stroke="var(--card-lo)" stroke-width=".6" vector-effect="non-scaling-stroke"/>` : ''}`;
+    }).join('');
+
+    box.innerHTML =
+      `<div class="funnel__art">
+         <svg viewBox="0 0 100 ${BAND * steps.length}" preserveAspectRatio="none" aria-hidden="true">${bands}</svg>
+       </div>` +
+      steps.map(([name, n], i) => `
+        <p class="fname" style="grid-row:${i + 1}">${esc(name)}<b>${esc(STAGES[i][2])}</b></p>
+        <p class="fval" style="grid-row:${i + 1}">
+          <span class="fval__n">${int(n)}</span>
+          <span class="fval__p">${pctTxt(pct(n, top))} of all</span>
+          ${i ? `<span class="fval__d">${drop(steps[i - 1][1], n)}</span>` : ''}
+        </p>`).join('');
+
+    box.classList.toggle('is-reveal', !!S.reveal);
 
     $('.card--funnel').setAttribute('aria-label',
       'Funnel: ' + steps.map(([n, v]) => `${n} ${int(v)}`).join(', '));
@@ -342,13 +436,16 @@
      "-42.9% lost" in that case is not a rounding wrinkle — it is the block
      telling the reader something false. */
   function drop(before, after) {
-    if (!before) return `${ico('chevron')}<span>nothing above to carry through</span>`;
+    if (!before) return '';
+    // board_detail guarantees each stage is a subset of the one above, so this
+    // branch should be unreachable. It stays as a tripwire: if it ever renders,
+    // the function's nesting has been broken and the page says so rather than
+    // drawing a funnel that silently widens.
     if (after > before) {
-      return `${ico('flag')}<span class="fdrop--up">${int(after - before)} more than the stage above — sent without one, or settled from an earlier period</span>`;
+      return `<span class="fdrop fdrop--up" title="Each stage should be a subset of the one above it">` +
+        `⚠ ${int(after - before)} more than the stage above</span>`;
     }
-    const kept = pct(after, before);
-    return `${ico('chevron')}<span>${pctTxt(kept)} carried through` +
-      `<span class="fdrop__lost"> · ${pctTxt(100 - kept)} lost</span></span>`;
+    return `<span class="fdrop"><span aria-hidden="true">↓</span> ${pctTxt(100 - pct(after, before))} lost</span>`;
   }
 
   /* --- 4.4 events over time ------------------------------------------- */
@@ -396,12 +493,24 @@
       ['Time', ...use.map(s => s.label)],
       rows.map((r, i) => [full[i], ...use.map(s => int(r[s.key]))]));
 
-    const cv = $('#chSeries');
-    const datasets = use.map(s => {
+    const values = use.map(s => rows.map(r => r[s.key]));
+    /* Three different things can happen on a render, and only the first two are
+       allowed to move anything on screen:
+         · the period or the source changed  → the full reveal;
+         · a poll brought new numbers        → the points glide to them;
+         · a poll brought the same numbers   → the chart is not touched at all.
+       Rebuilding the dataset array unconditionally, as this did, made every
+       poll look like the third case and behave like the first: Chart.js saw
+       fresh datasets and replayed the grow-from-the-baseline entrance every
+       fifteen seconds. */
+    const sig = JSON.stringify([labels, use.map(s => s.key), values]);
+    if (chSeries && chSeries.$sig === sig) { chSeries.$full = full; return; }
+
+    const dataset = (s, i) => {
       const colour = css(s.varName);
       return {
         label: s.label,
-        data: rows.map(r => r[s.key]),
+        data: values[i],
         borderColor: colour,
         borderWidth: 2,
         pointRadius: 0,
@@ -413,23 +522,38 @@
         fill: true,
         backgroundColor: ctx => fade(ctx, colour),
       };
-    });
+    };
 
     if (!chSeries) {
-      chSeries = new Chart(cv, {
+      chSeries = new Chart($('#chSeries'), {
         type: 'line',
-        data: { labels, datasets },
+        data: { labels, datasets: use.map(dataset) },
         options: seriesOptions(full),
         plugins: [crosshair],
       });
-    } else {
+    } else if (S.reveal || chSeries.data.datasets.length !== use.length) {
+      // A new period, a new source, or a type that has just appeared: the
+      // chart is answering a different question, so it may introduce itself.
+      chSeries.options.animations = revealFrom();
       chSeries.data.labels = labels;
-      chSeries.data.datasets = datasets;
-      chSeries.$full = full;
+      chSeries.data.datasets = use.map(dataset);
+      chSeries.update();
+    } else {
+      // Same question, newer numbers. Mutate in place and let Chart.js
+      // interpolate: the points move, the entrance does not replay.
+      chSeries.options.animations = {};
+      chSeries.data.labels = labels;
+      use.forEach((s, i) => { chSeries.data.datasets[i].data = values[i]; });
       chSeries.update();
     }
+    chSeries.$sig = sig;
     chSeries.$full = full;
   }
+
+  /* The entrance: every point starts on the baseline and rises to its value. */
+  const revealFrom = () => (REDUCED ? {} : {
+    y: { from: ctx => (ctx.chart.chartArea ? ctx.chart.chartArea.bottom : undefined) },
+  });
 
   /* A gradient needs the chart area, which does not exist on the first call —
      Chart.js re-resolves a scriptable option once it does. */
@@ -453,7 +577,7 @@
       responsive: true,
       maintainAspectRatio: false,
       animation: REDUCED ? false : { duration: 620, easing: 'easeOutCubic' },
-      animations: REDUCED ? {} : { y: { from: ctx => (ctx.chart.chartArea ? ctx.chart.chartArea.bottom : undefined) } },
+      animations: revealFrom(),
       interaction: { mode: 'index', intersect: false },
       layout: { padding: { top: 6, right: 2, left: 0 } },
       scales: {
@@ -546,7 +670,7 @@
     const rows = d.geo || [];
     const body = $('#geoTbl tbody');
     if (!rows.length) {
-      body.innerHTML = `<tr><td colspan="4" class="mut">No events in this period</td></tr>`;
+      body.innerHTML = `<tr><td colspan="5" class="mut">No events in this period</td></tr>`;
       return;
     }
     const top = Math.max(...rows.map(r => r.events), 1);
@@ -555,10 +679,26 @@
       return `<tr>
         <td>${flagCell(r.country)}</td>
         <td class="r">${int(r.events)}${share(r.events, top)}</td>
+        <td class="r">${rowDelta(r.events, r.events_prev)}</td>
         <td class="r">${int(r.leads)}</td>
         <td class="r ${r.leads ? '' : 'mut'}">${r.events ? pctTxt(cr) : '—'}</td>
       </tr>`;
     }).join('');
+  }
+
+  /* SPEC §7 asks the country table for "flags and coloured deltas". The arrow
+     carries the direction and the colour reinforces it — never colour alone.
+     `null` means no previous window was asked for, which is not the same as a
+     previous window that was empty, and must not draw the same cell. */
+  function rowDelta(now, before) {
+    if (before == null) return '<span class="mut">—</span>';
+    if (!before) return now ? '<span class="gd gd--new">new</span>' : '<span class="mut">—</span>';
+    const v = ((now - before) / before) * 100;
+    const dir = Math.abs(v) < 0.5 ? 'flat' : v > 0 ? 'up' : 'down';
+    const arrow = dir === 'flat' ? '→' : dir === 'up' ? '↑' : '↓';
+    const txt = Math.abs(v) >= 1000 ? '999+' : Math.abs(v).toFixed(Math.abs(v) < 10 ? 1 : 0);
+    return `<span class="gd gd--${dir}" title="${int(before)} in the period before this one">` +
+      `<span aria-hidden="true">${arrow}</span>${txt}%</span>`;
   }
 
   /* --- 4.6 devices ----------------------------------------------------- */
@@ -582,10 +722,17 @@
     $('#devTable').innerHTML = tableAlt('Devices', ['Device', 'Events', 'Share'],
       rows.map(r => [r.device, int(r.n), pctTxt(pct(r.n, total))]));
 
+    const labels = rows.map(r => r.device);
+    const values = rows.map(r => r.n);
+    // Same three cases as the area chart: the sweep is an entrance, not a
+    // heartbeat. Replacing `data` wholesale replayed it on every poll.
+    const sig = JSON.stringify([labels, values]);
+    if (chDev && chDev.$sig === sig) { chDev.$total = total; return; }
+
     const cfgData = {
-      labels: rows.map(r => r.device),
+      labels,
       datasets: [{
-        data: rows.map(r => r.n),
+        data: values,
         backgroundColor: rows.map((_, i) => colours[i % colours.length]),
         borderWidth: 0,
         spacing: 2,                 // the 2px surface gap, not a drawn border
@@ -617,9 +764,13 @@
         plugins: [donutCentre],
       });
     } else {
+      // The arcs may grow or shrink into their new share; the ring only sweeps
+      // out again when the question changed.
+      if (!REDUCED) chDev.options.animation.animateRotate = !!S.reveal;
       chDev.data = cfgData;
       chDev.update();
     }
+    chDev.$sig = sig;
     chDev.$total = total;
   }
 
@@ -747,6 +898,7 @@
     b.classList.add('is-on');
     b.setAttribute('aria-pressed', 'true');
     S.period = b.dataset.period;
+    S.reveal = true;
     touch();
     // A new period means new deltas, so this one asks for them.
     load({ withPrev: true });
@@ -754,6 +906,7 @@
 
   $('#site').addEventListener('change', e => {
     S.site = e.target.value || null;
+    S.reveal = true;
     touch();
     load({ withPrev: true });
   });
@@ -833,6 +986,51 @@
 
   howBtn.addEventListener('click', () => (modal.hidden ? openModal() : closeModal()));
   $$('[data-close]', modal).forEach(el => el.addEventListener('click', closeModal));
+
+  /* ------------------------------------------------------------------ *
+   * the left rail
+   *
+   * Every entry is a real destination on this page — there is nothing here
+   * that does not go somewhere, which is the whole reason a rail was allowed
+   * onto a single-page dashboard at all. It lights up to follow the reader.
+   * ------------------------------------------------------------------ */
+
+  const RAIL = [
+    ['sec-kpis',   'Headline',      '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>'],
+    ['sec-funnel', 'Funnel',        '<path d="M3 4h18l-7 8v8l-4-2v-6z"/>'],
+    ['sec-series', 'Over time',     '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m7 14 3.5-4 3 3L20 6"/>'],
+    ['sec-geo',    'Geography',     '<circle cx="12" cy="12" r="9"/><path d="M12 3a15 15 0 0 0 0 18 15 15 0 0 0 0-18"/><path d="M3 12h18"/>'],
+    ['sec-dev',    'Devices',       '<rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8M12 17v4"/>'],
+    ['sec-tail',   'Live events',   '<path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1.4" fill="currentColor"/>'],
+    ['sec-money',  'Monetisation',  '<path d="M12 2v20"/><path d="M17 6.5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'],
+    ['sec-health', 'Delivery',      '<path d="M22 12h-4l-3 8-4-16-3 8H2"/>'],
+  ];
+
+  $('#rail').innerHTML = RAIL.map(([id, label, path]) =>
+    `<li><a class="rail__b" href="#${id}" data-label="${label}" aria-label="${label}">` +
+    `<svg viewBox="0 0 24 24" aria-hidden="true">${path}</svg></a></li>`).join('');
+
+  (function railFollow() {
+    const links = new Map($$('.rail__b').map(a => [a.getAttribute('href').slice(1), a]));
+    const seen = new Map();
+    const mark = () => {
+      // The topmost section that is actually on screen wins — not merely the
+      // last one an observer fired for, which on a fast scroll is whichever
+      // callback happened to run last.
+      let best = null, bestTop = Infinity;
+      for (const [id, r] of seen) {
+        if (r.ratio > 0 && r.top < bestTop) { bestTop = r.top; best = id; }
+      }
+      links.forEach((a, id) => a.classList.toggle('is-on', id === best));
+    };
+    const io = new IntersectionObserver(entries => {
+      for (const e of entries) {
+        seen.set(e.target.id, { ratio: e.intersectionRatio, top: e.boundingClientRect.top });
+      }
+      mark();
+    }, { rootMargin: '-96px 0px -55% 0px', threshold: [0, .01, .3] });
+    RAIL.forEach(([id]) => { const el = document.getElementById(id); if (el) io.observe(el); });
+  })();
 
   /* ------------------------------------------------------------------ *
    * footer

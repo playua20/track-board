@@ -19,9 +19,15 @@
 -- Idempotent: `create or replace`. Apply with `npm run db:apply`.
 
 drop function if exists board_geo(text, timestamptz);
+-- Postgres identifies a function by its argument types, so adding a parameter
+-- with `create or replace` leaves an OVERLOAD behind rather than replacing
+-- anything — and PostgREST then has two candidates to choose between. Drop the
+-- old arity explicitly.
+drop function if exists board_detail(text, timestamptz);
 
 create or replace function board_detail(p_site text default null,
-                                        p_since timestamptz default null)
+                                        p_since timestamptz default null,
+                                        p_prev_since timestamptz default null)
 returns jsonb
 language sql
 stable
@@ -91,8 +97,54 @@ as $$
            count(*)::int                              as events,
            count(*) filter (where type = 'lead')::int as leads
     from ev group by 1
+  ),
+  -- The same countries over the window immediately before this one, so the
+  -- geography table can carry a direction per row (SPEC §7). This function
+  -- owns both bounds, so unlike the KPI deltas there is no subtraction trick
+  -- to play — the window is simply asked for.
+  /* The funnel, and the reason it is computed here rather than read off byType.
+     A funnel is only a funnel when each stage is a SUBSET of the one above it.
+     Four independent event counters are not: a lead can be sent without a click
+     before it (the demo button does exactly that), and a postback can settle
+     against a click from an earlier period — so the "funnel" widens in the
+     middle and the block tells the reader something false.
+
+     So each stage is defined as "this event got at least this far", and the
+     `or` down the chain is what makes every stage a superset of the next. The
+     pyramid cannot bulge on any data, ever — it is arithmetic, not luck. */
+  cvm as (
+    -- One row per event that carries an approved conversion. Grouped rather
+    -- than joined straight, so an event settled twice cannot count twice.
+    select event_id from conversions
+    where status = 'approved' and event_id is not null
+      and (p_since is null or created_at >= p_since)
+    group by event_id
+  ),
+  fev as (
+    select e.type, (m.event_id is not null) as conv
+    from events e
+    left join cvm m on m.event_id = e.id
+    where (p_site is null or e.site = p_site)
+      and (p_since is null or e.created_at >= p_since)
+  ),
+  evp as (
+    select coalesce(country, '??') as country, count(*)::int as events_prev
+    from events
+    where (p_site is null or site = p_site)
+      and p_prev_since is not null and p_since is not null
+      and created_at >= p_prev_since and created_at < p_since
+    group by 1
   )
   select jsonb_build_object(
+    'funnel', (select jsonb_build_object(
+                 'events',    count(*),
+                 -- `or conv` on the two middle stages is load-bearing: a
+                 -- conversion attributed to a CLICK would otherwise be counted
+                 -- below a stage it never passed through.
+                 'engaged',   count(*) filter (where type in ('click', 'lead') or conv),
+                 'leads',     count(*) filter (where type = 'lead' or conv),
+                 'converted', count(*) filter (where conv))
+               from fev),
     'bucket', (select unit from step),
     'series', (select coalesce(jsonb_agg(to_jsonb(s) order by s.t), '[]') from (
                  select a.t,
@@ -112,8 +164,15 @@ as $$
                  group by a.t) s),
     'geo',    (select coalesce(jsonb_agg(to_jsonb(x) order by x.events desc), '[]') from (
                  select evg.country, evg.events, evg.leads,
-                        coalesce(cvg.conversions, 0) as conversions
-                 from evg left join cvg using (country)
+                        coalesce(cvg.conversions, 0) as conversions,
+                        -- null, not 0, when no previous window was asked for:
+                        -- "we did not look" and "there was nothing" are
+                        -- different rows and must not draw the same chip.
+                        case when p_prev_since is null then null
+                             else coalesce(evp.events_prev, 0) end as events_prev
+                 from evg
+                 left join cvg using (country)
+                 left join evp using (country)
                  -- Twelve, the ceiling dashboard_stats uses for byCountry, so
                  -- the two reports cannot disagree about which countries exist.
                  order by evg.events desc, evg.country limit 12) x)

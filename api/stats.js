@@ -49,7 +49,13 @@ export default async function handler(req, res) {
 
     const calls = [
       supabase.rpc('dashboard_stats', { p_site: site, p_since: since }),
-      supabase.rpc('board_detail', { p_site: site, p_since: since }),
+      supabase.rpc('board_detail', {
+        p_site: site,
+        p_since: since,
+        // Bounded on both sides, so the geography table gets a direction per
+        // country without the doubled-window subtraction the KPI tiles need.
+        p_prev_since: wantPrev ? iso(hours * 2) : null,
+      }),
     ];
     if (wantPrev) {
       calls.push(supabase.rpc('dashboard_stats', { p_site: site, p_since: iso(hours * 2) }));
@@ -64,6 +70,7 @@ export default async function handler(req, res) {
     const detail = detailRes?.error ? {} : (detailRes?.data || {});
     res.status(200).json({
       ...data,
+      funnel: detail.funnel || null,
       geo:    detail.geo || [],
       series: detail.series || [],
       bucket: detail.bucket || 'hour',

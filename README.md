@@ -75,16 +75,19 @@ It makes two RPC calls, or three when `prev=1`:
 - **`dashboard_stats(p_site, p_since)`** — owned by the pipeline project.
   Totals, visitors, byType, byCountry, byDevice, byHour, byRef, recent,
   conversions, byAd, capi.
-- **`board_detail(p_site, p_since)`** — owned by *this* project, `db/schema.sql`.
-  Two things `dashboard_stats` does not report:
+- **`board_detail(p_site, p_since, p_prev_since)`** — owned by *this* project,
+  `db/schema.sql`. Three things `dashboard_stats` does not report:
+  - a **nested funnel**. See the decision below: four independent event
+    counters are not a funnel, and drawing them as one produces a shape that
+    widens in the middle.
   - a **continuous** time series split by event type. `byHour` is a flat total,
     capped at 48 rows, and skips hours that had no events — a chart drawn
     straight from it invents a slope across every gap. `board_detail` fills
     every bucket with `generate_series`, so a zero is drawn as a zero, and adds
     per-bucket conversions and revenue so all four KPI tiles can carry a
     sparkline.
-  - a **country table with leads and a conversion rate**. `byCountry` gives
-    events per country and nothing else.
+  - a **country table with leads, a conversion rate and a direction**.
+    `byCountry` gives events per country and nothing else.
 - **`dashboard_stats`** again over a window of twice the length, when the page
   asks for deltas — see the decision below.
 
@@ -125,7 +128,43 @@ with `data-track-endpoint` on `<body>` if it ever moves.
 §3 requires them. The card whose table they write into is where they belong: you
 press, and your row appears two lines below.
 
-**5 · Polling stops after ten idle minutes.** §9 asks for a 15-second poll while
+**5 · The funnel counts nested stages, not four separate event types.** §4.3 of
+the spec sources the four stages from `byType` and `conversions.approved`. Those
+are four independent counters, and on real data they do not nest: a lead can be
+sent with no click before it (the demo button does exactly that), and a postback
+can settle against a click from an earlier period. Drawn as a funnel, the shape
+*widens* in the middle — which is the block telling the reader something false.
+
+Each stage is therefore "an event that got **at least** this far":
+
+| stage | counts |
+|---|---|
+| Events | everything the endpoint recorded |
+| Engaged | a click, or a lead sent without one, or anything that converted |
+| Leads | a form submitted, or anything that converted |
+| Conversions | approved by the network |
+
+Every stage is a superset of the next by construction, so the pyramid cannot
+bulge on any data — it is arithmetic, not luck.
+
+**6 · The funnel's width uses a square-root scale, and the figures do not.**
+Real funnel numbers fall off a cliff: 109 → 21 → 14 → 4 here, and an order of
+magnitude per step in any account with real traffic. At linear width that is one
+wide band and three threads — the silhouette carries no information because
+every stage below the first is visually zero. A square-root scale renders the
+same numbers as 100 → 44 → 36 → 19, which is the gentle symmetric taper a funnel
+is supposed to be, with the order and the relative sizes intact. The exact count,
+the exact share of the first stage and the drop-off are printed beside every
+band: **the width is the silhouette, the figures are the data.**
+
+**7 · The left rail is navigation, not a mock admin panel.** Every entry jumps to
+a block on this page and lights up when that block is in view; there is no dead
+link in it. It exists because a rail is the silhouette that makes a page read as
+a dashboard rather than as an article — and it was only allowed on a
+single-page dashboard on condition that every icon goes somewhere real. Below
+1100px it is not rendered at all and the layout is the single column of §6.
+
+**8 · Polling stops after ten idle minutes.** §9 asks for a 15-second poll while
 the tab is visible. That alone would have a forgotten tab calling a serverless
 function four times a minute for as long as the browser is open — the sibling
 project already had to remove a 5-second timer for exactly that reason. Ten
