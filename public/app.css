@@ -573,7 +573,9 @@ svg.ico {
 
 .is-stale { opacity: .55; transition: opacity .2s; }
 .note { padding: 10px 0 2px; color: var(--ink-3); font-size: 12.5px; }
-.note--dest { padding-top: 12px; font-size: 12px; }
+.note--dest { padding-top: 12px; font-size: 12px; display: grid; gap: 5px; }
+.note__l { display: block; }
+.note__l b { color: var(--ink-2); font-weight: 650; }
 
 /* --- footer ------------------------------------------------------------ */
 

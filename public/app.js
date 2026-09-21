@@ -880,9 +880,13 @@
           return `<tr${orphan ? ' class="is-orphan"' : ''}>
             <td${orphan ? ' colspan="2"' : ''}>${
               orphan
+                /* Not "No click": the network DID report one, and a reader who
+                   takes this for organic traffic has it backwards — organic
+                   traffic never produces a postback at all. What is missing is
+                   our own record of that click. */
                 ? '<span class="cell">' + ico('unlink', 'ico ico--sm') +
-                  '<span class="orph"><b>No matching click</b>' +
-                  '<i>orphan postback — its click id was never seen here</i></span></span>'
+                  '<span class="orph"><b>Click id not recognised</b>' +
+                  '<i>the network reported a click this tracker never recorded</i></span></span>'
                 : esc(r.campaign)}</td>
             ${orphan ? '' : `<td class="mut">${esc(r.ad)}</td>`}
             <td class="r">${int(r.conversions)}</td>
@@ -945,12 +949,31 @@
 
     const dests = d.capiDest || [];
     const note = $('#healthDest');
-    if (!dests.length) { note.textContent = ''; note.hidden = true; return; }
-    note.hidden = false;
-    note.innerHTML = dests.map(k => {
-      const [label, why] = DEST[k] || [esc(k), ''];
-      return `Sent to <span class="hint" title="${esc(why)}">${label}</span>`;
-    }).join(' · ');
+    const lines = [];
+
+    if (dests.length) {
+      lines.push(dests.map(k => {
+        const [label, why] = DEST[k] || [esc(k), ''];
+        return `Sent to <span class="hint" title="${esc(why)}">${label}</span>`;
+      }).join(' · '));
+    }
+
+    /* Why `delivered` can be larger than the Conversions tile, said where the
+       two numbers sit rather than left for the reader to reconcile: a call
+       goes out when a postback settles a conversion as approved, and a later
+       postback with the same txid can reverse it — by which time the platform
+       has already been told, and the call cannot be un-sent. A pending
+       conversion, on the other hand, triggers no call at all. */
+    const stale = Number(d.capiStale) || 0;
+    const approved = Number(d.conversions?.approved) || 0;
+    const delivered = Number(d.capi?.delivered) || 0;
+    if (stale > 0) {
+      lines.push(`${int(delivered)} call${delivered === 1 ? '' : 's'} for ${int(approved)} conversion${approved === 1 ? '' : 's'} approved now: ` +
+        `<b>${int(stale)}</b> went out before the network reversed ${stale === 1 ? 'it' : 'them'}.`);
+    }
+
+    note.hidden = !lines.length;
+    note.innerHTML = lines.map(l => `<span class="note__l">${l}</span>`).join('');
   }
 
   /* ------------------------------------------------------------------ *

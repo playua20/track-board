@@ -164,6 +164,17 @@ as $$
                  from capi_deliveries d
                  where (p_since is null or d.created_at >= p_since)
                    and (p_site is null or exists (select 1 from cvp where cvp.id = d.conversion_id))),
+    /* Calls that went out for a conversion the network has since taken back.
+       Delivery fires when a postback settles a conversion as approved; a later
+       postback with the same txid can reverse it, and by then the platform has
+       already been told. It is why `delivered` can exceed the approved count,
+       and without it the two figures look like a contradiction. */
+    'capiStale', (select count(*)::int
+                  from capi_deliveries d
+                  join conversions cv on cv.id = d.conversion_id
+                  where d.status = 'delivered' and cv.status <> 'approved'
+                    and (p_since is null or d.created_at >= p_since)
+                    and (p_site is null or exists (select 1 from cvp where cvp.id = d.conversion_id))),
     'bucket', (select unit from step),
     'series', (select coalesce(jsonb_agg(to_jsonb(s) order by s.t), '[]') from (
                  select a.t,

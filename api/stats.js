@@ -70,8 +70,9 @@ export default async function handler(req, res) {
     const detail = detailRes?.error ? {} : (detailRes?.data || {});
     res.status(200).json({
       ...data,
-      funnel:   detail.funnel || null,
-      capiDest: detail.capiDest || [],
+      funnel:    detail.funnel || null,
+      capiDest:  detail.capiDest || [],
+      capiStale: detail.capiStale ?? 0,
       geo:    detail.geo || [],
       series: detail.series || [],
       bucket: detail.bucket || 'hour',
