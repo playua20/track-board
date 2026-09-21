@@ -24,16 +24,28 @@ drop function if exists board_geo(text, timestamptz);
 -- anything — and PostgREST then has two candidates to choose between. Drop the
 -- old arity explicitly.
 drop function if exists board_detail(text, timestamptz);
+drop function if exists board_detail(text, timestamptz, timestamptz);
 
 create or replace function board_detail(p_site text default null,
                                         p_since timestamptz default null,
-                                        p_prev_since timestamptz default null)
+                                        p_prev_since timestamptz default null,
+                                        -- How many ads and sources to name before folding the
+                                        -- rest into one row. The page raises it when a reader
+                                        -- asks to see the tail, and it is clamped here as well
+                                        -- as at the endpoint: "show me everything" on an account
+                                        -- with a thousand ads is not a thing to hand a browser.
+                                        p_top int default 9)
 returns jsonb
 language sql
 stable
 security invoker
 as $$
-  with ev as (
+  with cap as (
+    -- Clamped here and not only at the endpoint: the function is reachable
+    -- through PostgREST, so the bound has to live where the query does.
+    select least(greatest(coalesce(p_top, 9), 3), 60) as top
+  ),
+  ev as (
     -- ref_host is here for refg below; adding a column to this CTE is cheaper
     -- than a second pass over the same filtered set.
     select created_at, type, ref_host, coalesce(country, '??') as country
@@ -234,24 +246,25 @@ as $$
        a lone pending one reads "1 conversion · $0.00". Both are true and
        together they are misleading: two columns side by side on different
        bases, with nothing saying so. */
-    -- Nine named ads plus, when there are more, one row carrying the rest.
+    -- The named ads plus, when there are more, one row carrying the rest.
     'byAd', (select coalesce(jsonb_agg(to_jsonb(x) order by x.rank), '[]') from (
                select rank, campaign, ad, matched, approved, pending, rejected, revenue,
                       false as folded, 0 as folded_n
-               from adr where rank <= 9
+               from adr where rank <= (select top from cap)
                union all
-               select 10, null, null, null,
+               select (select top from cap) + 1, null, null, null,
                       sum(approved)::int, sum(pending)::int, sum(rejected)::int,
                       sum(revenue)::float8, true, count(*)::int
-               from adr where rank > 9
+               from adr where rank > (select top from cap)
                having count(*) > 0) x),
-    -- Same shape for the sources, which also add up to the event total.
+    -- Same shape for the sources, which also add up to the event total. Two
+    -- fewer named, because the block gives them a narrower column.
     'byRef', (select coalesce(jsonb_agg(to_jsonb(x) order by x.rank), '[]') from (
                 select rank, host, n, false as folded, 0 as folded_n
-                from refr where rank <= 7
+                from refr where rank <= (select top from cap) - 2
                 union all
-                select 8, null, sum(n)::int, true, count(*)::int
-                from refr where rank > 7
+                select (select top from cap) - 1, null, sum(n)::int, true, count(*)::int
+                from refr where rank > (select top from cap) - 2
                 having count(*) > 0) x),
     'bucket', (select unit from step),
     'series', (select coalesce(jsonb_agg(to_jsonb(s) order by s.t), '[]') from (

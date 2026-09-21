@@ -566,6 +566,20 @@ svg.ico {
 /* The conversion that could not be credited to an ad. Two lines, because the
    first is a fact and the second is the reason for it, and a table cell is the
    one place a reader will not go looking for a tooltip. */
+/* The folded tail is a real button, so it looks like one can be pressed —
+   a row that reads as text and behaves as a control is worse than either. */
+.fold {
+  display: inline-flex; align-items: center; gap: 7px;
+  min-height: 32px; padding: 3px 9px 3px 6px;
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  background: var(--card-2);
+  color: var(--ink-2); font-size: 12.5px; cursor: pointer;
+  transition: color .15s ease, border-color .15s ease;
+}
+.fold:hover { color: var(--ink); border-color: rgba(255, 255, 255, .2); }
+.fold:disabled { opacity: .6; cursor: default; }
+.fold__i { color: inherit; }
+
 .orph { display: block; min-width: 0; }
 .orph b { display: block; font-weight: 600; color: var(--ink-2); }
 .orph i {

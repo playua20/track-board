@@ -122,6 +122,14 @@ It makes two RPC calls, or three when `prev=1`:
     sparkline.
   - a **country table with leads, a conversion rate and a direction**.
     `byCountry` gives events per country and nothing else.
+  - **per-ad and per-source totals whose tail folds rather than truncates.** A
+    plain `limit 10` bounds the table's height and silently drops the rest, so
+    past the limit the revenue column stops summing to the Revenue tile with
+    nothing saying why. Ranked instead, with everything beyond the cut carried
+    in one row — "Show 11 more ads", with their conversions and their money
+    beside it — which opens in place when pressed. Bounded at both ends: the
+    fold keeps the closed table short, and a ceiling on the expansion keeps the
+    open one finite.
   - **per-ad totals split by status.** The shared `byAd` counts conversions of
     every status in one column while summing revenue from approved ones only,
     so an ad with an approved $18.00, a rejected $9.00 and an approved $7.50

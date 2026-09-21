@@ -118,6 +118,10 @@
     // whether they may play their entrance; a poll must never replay it.
     reveal: true,
     timer: 0,
+    // How many ads and sources the monetisation tables name before folding.
+    // Raised when a reader opens the folded row; reset whenever the period or
+    // the source changes, because that is a different question.
+    top: 9,
     lastTouch: Date.now(),
     seen: new Set(),     // keys of rows already in the tail, so only new ones flash
   };
@@ -130,6 +134,7 @@
     const q = new URLSearchParams({ period: S.period });
     if (S.site) q.set('site', S.site);
     if (withPrev) q.set('prev', '1');
+    if (S.top > 9) q.set('top', String(S.top));
 
     if (!S.first && !quiet) $('#board').classList.add('is-stale');
 
@@ -870,6 +875,20 @@
 
   /* --- 4.8 monetisation -------------------------------------------------- */
 
+  /* A row saying "5 more ads" with no way to see them is a dead end — the same
+     shape as a figure that does not explain itself. It is a real button, so it
+     is keyboard reachable and announces its state; opening it asks the server
+     for a longer list rather than hiding rows the page never had. */
+  const foldBtn = (n, what) =>
+    `<button type="button" class="fold" data-open-fold aria-expanded="false">` +
+    `${ico('chevron', 'ico ico--sm fold__i')}` +
+    `<span>Show ${int(n)} more ${esc(what)}${n === 1 ? '' : 's'}</span></button>`;
+
+  /* Bounded on purpose. "Everything" on an account with a thousand ads is not
+     a thing to hand a browser, and an unbounded table is what the fold exists
+     to prevent; the server clamps this again. */
+  const FOLD_TOP = 40;
+
   function money(d) {
     const ads = d.byAd || [];
     $('#adTbl tbody').innerHTML = ads.length
@@ -888,8 +907,7 @@
              column still sums to the Revenue tile however many ads exist. */
           if (r.folded) {
             return `<tr class="is-folded">
-              <td colspan="2"><span class="cell">${ico('chevron', 'ico ico--sm')}` +
-              `<span class="mut">${int(r.folded_n)} more ad${r.folded_n === 1 ? '' : 's'}</span></span></td>
+              <td colspan="2">${foldBtn(r.folded_n, 'ad')}</td>
               <td class="r">${int(r.approved)}${pendRej(r)}</td>
               <td class="r">${cash(r.revenue)}</td>
             </tr>`;
@@ -925,13 +943,15 @@
         }).join('')
       : `<tr><td colspan="4" class="mut">No conversions in this period</td></tr>`;
 
+    // Only offered once something is actually unfolded, and only while there
+    // is nothing left to unfold — otherwise both controls would be on screen.
+    $('#foldLess').hidden = !(S.top > 9 && !ads.some(r => r.folded));
+
     const refs = d.byRef || [];
     const top = Math.max(...refs.map(r => r.n), 1);
     $('#refTbl tbody').innerHTML = refs.length
       ? refs.map(r => `<tr${r.folded ? ' class="is-folded"' : ''}>
-          <td>${r.folded
-            ? `<span class="cell">${ico('chevron', 'ico ico--sm')}<span class="mut">${int(r.folded_n)} more source${r.folded_n === 1 ? '' : 's'}</span></span>`
-            : refCell(r.host)}</td>
+          <td>${r.folded ? foldBtn(r.folded_n, 'source') : refCell(r.host)}</td>
           <td class="r">${int(r.n)}${share(r.n, top)}</td>
         </tr>`).join('')
       : `<tr><td colspan="2" class="mut">No events in this period</td></tr>`;
@@ -1065,6 +1085,7 @@
     b.setAttribute('aria-pressed', 'true');
     S.period = b.dataset.period;
     S.reveal = true;
+    S.top = 9;
     touch();
     // A new period means new deltas, so this one asks for them.
     load({ withPrev: true });
@@ -1073,6 +1094,7 @@
   $('#site').addEventListener('change', e => {
     S.site = e.target.value || null;
     S.reveal = true;
+    S.top = 9;
     touch();
     load({ withPrev: true });
   });
@@ -1116,6 +1138,24 @@
 
   $$('[data-demo]').forEach(b =>
     b.addEventListener('click', () => sendDemo(b, b.dataset.demo)));
+
+  /* Opening or closing the tail. Delegated, because the button is rebuilt on
+     every render of the block. */
+  $('.card--money').addEventListener('click', e => {
+    const b = e.target.closest('[data-open-fold]');
+    if (!b) return;
+    b.setAttribute('aria-expanded', 'true');
+    b.disabled = true;
+    S.top = FOLD_TOP;
+    touch();
+    load({ quiet: true });
+  });
+
+  $('#foldLessBtn').addEventListener('click', () => {
+    S.top = 9;
+    touch();
+    load({ quiet: true });
+  });
 
   /* ------------------------------------------------------------------ *
    * modal (§5) — Esc, outside click, focus trapped, focus returned

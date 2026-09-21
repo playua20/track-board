@@ -52,6 +52,10 @@ export default async function handler(req, res) {
       supabase.rpc('board_detail', {
         p_site: site,
         p_since: since,
+        // How many ads and sources to name before folding the rest. The page
+        // asks for more when a reader opens the folded row; the ceiling is
+        // enforced again in the function itself.
+        p_top: Math.min(Math.max(Number(q.top) || 9, 3), 60),
         // Bounded on both sides, so the geography table gets a direction per
         // country without the doubled-window subtraction the KPI tiles need.
         p_prev_since: wantPrev ? iso(hours * 2) : null,
