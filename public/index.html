@@ -291,7 +291,7 @@
 
       <p><strong>Why a conversion appears after a lead.</strong> A lead is the visitor's
       action — a form sent. A conversion is the advertiser's verdict on it, and it
-      arrives later, from their server, as a <em>postback</em>: a plain HTTP call carrying
+      arrives later, from their server, as a <em>postback</em>: a plain HTTP request carrying
       the click id, a status and a payout. The click id is what ties the two together,
       which is why a conversion can be approved, left pending, reversed, or land with no
       matching click at all. Those four outcomes are in the funnel and in the figures
@@ -299,12 +299,12 @@
 
       <p><strong>What delivery means.</strong> Once a conversion is settled it is worth
       telling the ad platform about, so it can optimise on it. That is a Conversions API
-      call — server to server, with the identifiers hashed, a deduplication key so a
-      browser pixel and this call are not counted twice, and a retry queue for the calls
-      that fail. <em>Delivery health</em> at the foot of the page is that queue's own
+      request — server to server, no browser and nobody on a telephone, with the
+      identifiers hashed, a deduplication key so a browser pixel and this request are
+      not counted twice, and a retry queue for the ones that fail. <em>Delivery health</em> at the foot of the page is that queue's own
       record: delivered, failed, skipped, and how long the round trip took.</p>
 
-      <p><strong>And where those calls actually go.</strong> With no Meta credentials
+      <p><strong>And where those requests actually go.</strong> With no Meta credentials
       attached they go to an endpoint of ours that answers with the Graph API's own
       contract, and the page says so rather than implying otherwise — real delivery to
       Meta can only be verified inside the account owner's Events Manager, which a

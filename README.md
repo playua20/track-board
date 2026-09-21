@@ -17,9 +17,9 @@ day.
 - press a demo button and find the new row in *Live events*, geolocated;
 - switch the period and watch the funnel, the chart and the deltas re-scope;
 - read *Delivery health*: it reconciles its own figures against the Conversions
-  tile and names where the calls actually went, rather than leaving the
+  tile and names where the requests actually went, rather than leaving the
   difference to be guessed at;
-- open *How it works* for the four paragraphs behind all of it.
+- open *How it works* for the five paragraphs behind all of it.
 
 **The engineering that is not obvious from the screenshot:** a funnel whose
 stages are nested by construction, so it cannot widen in the middle on any
@@ -38,8 +38,8 @@ independently.
 
 ## How it works
 
-The four paragraphs between the markers below are the **canonical text**. The
-"How it works" modal in `public/index.html` carries the same four, between
+The five paragraphs between the markers below are the **canonical text**. The
+"How it works" modal in `public/index.html` carries the same five, between
 matching `modal:start` / `modal:end` comments. Edit the two together.
 
 <!-- modal:start -->
@@ -58,19 +58,20 @@ never kept.
 
 **Why a conversion appears after a lead.** A lead is the visitor's action — a
 form sent. A conversion is the advertiser's verdict on it, and it arrives later,
-from their server, as a *postback*: a plain HTTP call carrying the click id, a
+from their server, as a *postback*: a plain HTTP request carrying the click id, a
 status and a payout. The click id is what ties the two together, which is why a
 conversion can be approved, left pending, reversed, or land with no matching
 click at all. Those four outcomes are in the funnel and in the figures below it.
 
 **What delivery means.** Once a conversion is settled it is worth telling the ad
-platform about, so it can optimise on it. That is a Conversions API call — server
-to server, with the identifiers hashed, a deduplication key so a browser pixel
-and this call are not counted twice, and a retry queue for the calls that fail.
+platform about, so it can optimise on it. That is a Conversions API request — server
+to server, no browser and nobody on a telephone, with the identifiers hashed, a
+deduplication key so a browser pixel and this request are not counted twice, and
+a retry queue for the ones that fail.
 *Delivery health* at the foot of the page is that queue's own record: delivered,
 failed, skipped, and how long the round trip took.
 
-**And where those calls actually go.** With no Meta credentials attached they go
+**And where those requests actually go.** With no Meta credentials attached they go
 to an endpoint of ours that answers with the Graph API's own contract, and the
 page says so rather than implying otherwise — real delivery to Meta can only be
 verified inside the account owner's Events Manager, which a visitor cannot open.

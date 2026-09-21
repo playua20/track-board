@@ -939,7 +939,7 @@
      one in fixed text would become false the day the other was true. */
   const DEST = {
     meta: ['Meta Conversions API', 'Delivered to Meta’s Conversions API endpoint'],
-    sink: ['a stand-in endpoint', 'No Meta credentials are attached, so the calls go to an endpoint of ours that answers with the Graph API’s own contract. Attaching META_PIXEL_ID and META_ACCESS_TOKEN changes the destination, not the code — real CAPI can only be verified inside the account owner’s Events Manager, which a visitor cannot open.'],
+    sink: ['a stand-in endpoint', 'No Meta credentials are attached, so the requests go to an endpoint of ours that answers with the Graph API’s own contract. Attaching META_PIXEL_ID and META_ACCESS_TOKEN changes the destination, not the code — real CAPI can only be verified inside the account owner’s Events Manager, which a visitor cannot open.'],
   };
 
   /* "Reversed" is the trade's word for the advertiser retracting a conversion
@@ -990,7 +990,12 @@
        1 reversed plus 1 that took it back is the 8 at the top of the card. */
     if (reversed > 0) {
       const them = reversed === 1 ? 'it' : 'them';
-      let line = `${int(delivered)} call${delivered === 1 ? '' : 's'} for ` +
+      /* "Deliveries", never "calls". In lead generation a call is a thing a
+         call centre makes to a person — the REVERSAL note below is about
+         exactly that — so the same word for an HTTP request to the platform
+         reads, to the one reader who knows this trade, as somebody phoning a
+         lead. It also matches the card's own title and its three counters. */
+      let line = `${int(delivered)} deliver${delivered === 1 ? 'y' : 'ies'} for ` +
         `${int(approved)} conversion${approved === 1 ? '' : 's'} approved now: ` +
         `<b>${int(reversed)}</b> went out before the network ` +
         `<span class="hint" title="${esc(REVERSAL)}">reversed</span> ${them}`;
@@ -1002,7 +1007,7 @@
       // The only figure here that is a problem: a signal the platform still
       // believes and we have not withdrawn. Silence when there is none.
       if (open > 0) {
-        lines.push(`<span class="bad">⚠ ${int(open)} not taken back yet — the platform is still ` +
+        lines.push(`<span class="bad">⚠ ${int(open)} of them not taken back yet — the platform is still ` +
           `optimising on ${open === 1 ? 'a conversion' : 'conversions'} that no longer ` +
           `${open === 1 ? 'exists' : 'exist'}. The retry sweeper picks ${open === 1 ? 'it' : 'them'} up.</span>`);
       }
