@@ -544,7 +544,14 @@
         label: s.label,
         data: values[i],
         borderColor: colour,
-        borderWidth: 2,
+        /* 3, not 2. The canvas is rendered at the full device pixel ratio —
+           measured at 1×, 1.25×, 1.5× and 2×, all sharp — so the stepping on a
+           diagonal was never rasterisation. It was the stroke: two pixels on a
+           dark ground shows its own staircase, three reads as a line. Round
+           joins and caps for the same reason, at the tight turns. */
+        borderWidth: 3,
+        borderJoinStyle: 'round',
+        borderCapStyle: 'round',
         pointRadius: 0,
         pointHoverRadius: 4,
         pointHoverBackgroundColor: colour,
