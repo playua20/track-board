@@ -283,11 +283,17 @@
      say nothing, and the colour of a sparkline is the cheapest thing on the
      page that carries real information. */
   function trend(vals) {
-    if (vals.length < 4) return 'flat';
-    const cut = Math.max(1, Math.round(vals.length / 3));
+    /* The axis ends at now, so the FINAL bucket is always partial — at 17:49
+       it holds eleven minutes measured against full hours. Judging a trend
+       with it in means every metric drifts toward "falling" as each hour
+       begins. It is real data and stays on the line; it just does not get a
+       vote on the direction. */
+    const v = vals.length > 4 ? vals.slice(0, -1) : vals;
+    if (v.length < 4) return 'flat';
+    const cut = Math.max(1, Math.round(v.length / 3));
     const mean = a => a.reduce((x, y) => x + y, 0) / (a.length || 1);
-    const before = mean(vals.slice(0, -cut));
-    const after = mean(vals.slice(-cut));
+    const before = mean(v.slice(0, -cut));
+    const after = mean(v.slice(-cut));
     if (!before && !after) return 'flat';
     if (!before) return 'up';
     const change = (after - before) / before;
@@ -307,17 +313,27 @@
       const vals = rows.map(r => Number(f(r)) || 0);
       // The tile's own direction when there is a previous period to compare
       // against, so the chip and the line agree; otherwise the line's own.
-      const dir = dirs[k] === 'up' || dirs[k] === 'down' ? dirs[k] : trend(vals);
+      const fromChip = dirs[k] === 'up' || dirs[k] === 'down';
+      const dir = fromChip ? dirs[k] : trend(vals);
       // A flat line of zeroes says nothing the big number does not already say.
       const html = rows.length > 1 && vals.some(v => v > 0)
-        ? sparkSvg(vals, k, SPARK_COLOUR[dir] || '--accent') : '';
+        ? sparkSvg(vals, k, SPARK_COLOUR[dir] || '--accent', why(dir, fromChip, d.period)) : '';
       // Unchanged numbers must not rebuild the node: a poll should leave the
       // page alone where nothing has moved.
       if (box.dataset.sig !== html) { box.dataset.sig = html; box.innerHTML = html; }
     }
   }
 
-  function sparkSvg(vals, key, colourVar) {
+  /* The colour of a sparkline is a claim, and until now nothing on the page
+     said what it claimed — the same metric is green over 30 days and red over
+     24 hours, which is correct (different window, different question) and
+     looks like a fault until it is spelled out. */
+  const WORD = { up: 'Rising', down: 'Falling', flat: 'Flat', new: 'Flat' };
+  const why = (dir, fromChip, period) => fromChip
+    ? `${WORD[dir]} against the period before this one`
+    : `${WORD[dir]} within ${PERIOD_LABEL[period] || 'this period'}; no earlier period to compare against`;
+
+  function sparkSvg(vals, key, colourVar, label) {
     const W = 100, H = 34, PAD = 3;
     const max = Math.max(...vals, 1);
     const x = i => (i / (vals.length - 1)) * W;
@@ -340,7 +356,8 @@
     // The paths stretch to the box (`preserveAspectRatio="none"`), which would
     // squash a circle drawn inside the same SVG into an ellipse. The marker is
     // therefore an HTML element placed over it, in percentages.
-    return `<span class="spark" style="--sc:${c}">
+    return `<span class="spark" style="--sc:${c}" title="${esc(label)}">
+      <span class="vh">${esc(label)}</span>
       <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
         <defs>
           <linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1">
