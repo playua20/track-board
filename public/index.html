@@ -216,6 +216,16 @@
             <tbody></tbody>
           </table>
         </div>
+        <!-- The inbound counterpart to Delivery health: what the edge turned
+             away before it could become a row above. Hidden until there is
+             something to report, so a clean period shows nothing rather than a
+             row of zeroes. -->
+        <p class="note note--edge" id="edgeNote" hidden>
+          <span class="note__l" id="edgeCounts"></span>
+          <span class="note__r">Crawlers that spoof a browser user-agent <em>and</em> run JavaScript are
+          not among these — catching those needs a datacentre-IP feed this project does not buy,
+          and the same limit applies to GA4 and Plausible.</span>
+        </p>
       </section>
 
       <!-- 4.8 -->

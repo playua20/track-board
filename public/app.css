@@ -643,6 +643,18 @@ svg.ico {
 .note__l .ok  { color: var(--up); }
 .note__l .bad { color: var(--warn); }
 
+/* The edge-filter note. Ruled off above rather than boxed: it is a footnote to
+   the table, not a competing panel, and a second surface here would read as a
+   card inside a card. */
+.note--edge {
+  margin-top: 14px; padding-top: 12px;
+  border-top: 1px solid var(--line);
+  display: grid; gap: 4px;
+}
+.note--edge .note__l { color: var(--ink-2); font-weight: 600; }
+.note--edge .note__r { display: block; color: var(--ink-3); font-size: 12px; line-height: 1.5; }
+.note--edge em { font-style: normal; color: var(--ink-2); }
+
 /* --- footer ------------------------------------------------------------ */
 
 .foot {

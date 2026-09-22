@@ -296,6 +296,21 @@ as $$
                  left join evp using (country)
                  -- Twelve, the ceiling dashboard_stats uses for byCountry, so
                  -- the two reports cannot disagree about which countries exist.
-                 order by evg.events desc, evg.country limit 12) x)
+                 order by evg.events desc, evg.country limit 12) x),
+    /* What the edge REFUSED over the same window — the counterpart to every
+       other figure here, which counts only what got through.
+
+       Read from `blocked`, which the tracking pipeline writes: these are real
+       refusals by a named guard, not a guess about which stored rows look
+       automated. That distinction is the whole point. A heuristic over the
+       events we KEPT would have to call a datacentre IP a bot — and a VPN exit
+       is a datacentre, so it would label this project's own demo traffic, and
+       any privacy-minded visitor, as fraud. A number that is provable and
+       narrow beats a number that is broad and wrong. */
+    'blocked', (select coalesce(jsonb_agg(to_jsonb(x) order by x.n desc), '[]') from (
+                 select reason, sum(n)::int as n
+                 from blocked
+                 where p_since is null or bucket >= date_trunc('hour', p_since)
+                 group by reason) x)
   );
 $$;

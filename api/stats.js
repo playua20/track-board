@@ -86,6 +86,10 @@ export default async function handler(req, res) {
       geo:    detail.geo || [],
       series: detail.series || [],
       bucket: detail.bucket || 'hour',
+      // Refusals by the edge guards. Not filtered by `site`: a request turned
+      // away before its body was read never named one, so scoping this to a
+      // source would quietly report zero rather than "not known per source".
+      blocked: detail.blocked || [],
       prev: wantPrev && !wideRes?.error && wideRes?.data
         ? previous(wideRes.data, data) : null,
       period,

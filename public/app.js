@@ -187,6 +187,7 @@
     geo(d);
     devices(d);
     tail(d);
+    edge(d);
     money(d);
     health(d);
     emptiness(d);
@@ -237,8 +238,13 @@
     for (const k of Object.keys(cur)) tween($(`[data-k="${k}"]`), cur[k], fmt[k]);
 
     const views = typeN(d, 'pageview');
+    /* Refused at the edge. Beside the Events count on purpose: it is the same
+       question asked the other way round, and a tracker that reports only what
+       it accepted is reporting half of what an advertiser paid for. */
+    const refused = (d.blocked || []).reduce((a, r) => a + (Number(r.n) || 0), 0);
     const notes = {
-      events: `${int(d.visitors)} visitor${Number(d.visitors) === 1 ? '' : 's'}`,
+      events: `${int(d.visitors)} visitor${Number(d.visitors) === 1 ? '' : 's'}` +
+              (refused ? ` · ${int(refused)} refused` : ''),
       // Against pageviews, not clicks: a lead can be sent without a click
       // preceding it, and a rate over the smaller number reads as >100%.
       leads:  views ? `${pctTxt(pct(cur.leads, views))} of pageviews` : '',
@@ -877,6 +883,29 @@
     if (S.seen.size > 400) S.seen = new Set(rows.map(r => `${r.created_at}|${r.type}|${r.country}|${r.browser}`));
     requestAnimationFrame(() => $$('.is-new', body).forEach(tr =>
       setTimeout(() => tr.classList.remove('is-new'), 1400)));
+  }
+
+  /* Named in the reader's words, not the guard's. `crawler-ua` is what the code
+     calls it; "declared itself a crawler" is what actually happened, and the
+     difference matters on a page whose job is to be read by someone who did not
+     write it. */
+  const REFUSAL = {
+    'crawler-ua': 'declared themselves crawlers',
+    'local-host': 'came from a developer machine',
+    'rate-limit': 'exceeded the rate limit',
+  };
+
+  function edge(d) {
+    const rows = (d.blocked || []).filter(r => Number(r.n) > 0);
+    const note = $('#edgeNote');
+    const total = rows.reduce((a, r) => a + Number(r.n), 0);
+    note.hidden = !total;
+    if (!total) return;
+    const parts = rows.map(r =>
+      `<b>${int(r.n)}</b> ${esc(REFUSAL[r.reason] || r.reason)}`);
+    $('#edgeCounts').innerHTML =
+      `The edge refused ${int(total)} request${total === 1 ? '' : 's'} in this period: ` +
+      parts.join(', ') + '.';
   }
 
   const TYPE_COLOUR = { pageview: '--s-view', click: '--s-click', lead: '--s-lead', test: '--s-test' };
