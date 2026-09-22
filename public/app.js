@@ -901,11 +901,14 @@
     const total = rows.reduce((a, r) => a + Number(r.n), 0);
     note.hidden = !total;
     if (!total) return;
-    const parts = rows.map(r =>
-      `<b>${int(r.n)}</b> ${esc(REFUSAL[r.reason] || r.reason)}`);
-    $('#edgeCounts').innerHTML =
-      `The edge refused ${int(total)} request${total === 1 ? '' : 's'} in this period: ` +
-      parts.join(', ') + '.';
+    const lead = `The edge refused <b>${int(total)}</b> request${total === 1 ? '' : 's'} in this period`;
+    /* With one reason the count would otherwise be printed twice — "refused 5
+       requests: 5 declared themselves crawlers" — which reads as two findings
+       that happen to agree rather than one fact. */
+    $('#edgeCounts').innerHTML = rows.length === 1
+      ? `${lead}, all of which ${esc(REFUSAL[rows[0].reason] || rows[0].reason)}.`
+      : `${lead}: ` +
+        rows.map(r => `<b>${int(r.n)}</b> ${esc(REFUSAL[r.reason] || r.reason)}`).join(', ') + '.';
   }
 
   const TYPE_COLOUR = { pageview: '--s-view', click: '--s-click', lead: '--s-lead', test: '--s-test' };
